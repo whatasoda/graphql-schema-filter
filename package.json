@@ -1,7 +1,7 @@
 {
   "name": "graphql-schema-extract",
   "version": "0.1.0",
-  "description": "GraphQL schema filtering library with @expose directive support for role-based access control",
+  "description": "GraphQL schema filtering library with @expose directive support",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
@@ -14,14 +14,9 @@
   },
   "keywords": [
     "graphql",
-    "schema",
-    "filter",
-    "permissions",
-    "rbac",
-    "access-control",
-    "directive"
+    "schema"
   ],
-  "author": "",
+  "author": "Shota Hatada <shota.hatada@whatasoda.me>",
   "license": "MIT",
   "peerDependencies": {
     "graphql": "^16.0.0"
@@ -29,6 +24,7 @@
   "devDependencies": {
     "@graphql-tools/utils": "^10.5.4",
     "@types/bun": "latest",
-    "graphql": "^16.9.0"
+    "graphql": "^16.9.0",
+    "typescript": "^5.9.3"
   }
 }

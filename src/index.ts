@@ -10,7 +10,7 @@
 // メイン関数
 export { filterSchemaForRole } from "./filter/filter-schema";
 
-// 純粋関数（旧クラスの代替）
+// Parser関連の純粋関数
 export {
   parseExposeDirectives,
   isFieldExposed,
@@ -18,9 +18,34 @@ export {
   debugExposeDirectives,
 } from "./parser/expose-parser";
 
-export { computeReachability, analyzeReachability } from "./analyzer/reachability";
+// Reachability関連の純粋関数
+export {
+  computeReachability,
+  analyzeReachability,
+  traverseObjectOrInterface,
+  traverseUnion,
+  traverseInputObject,
+  traverseType,
+  getRootType,
+  addRootField,
+  addTypeToQueue,
+} from "./analyzer/reachability";
 
-export { buildFilteredSchema } from "./filter/schema-filter";
+// Schema Filter関連の純粋関数
+export {
+  buildFilteredSchema,
+  buildFilteredTypeMap,
+  buildRootType,
+  filterType,
+  filterObjectType,
+  filterInterfaceType,
+  filterInputObjectType,
+  filterObjectFields,
+  filterInterfaceFields,
+  filterInputObjectFields,
+  convertFieldToConfig,
+  replaceTypeReferences,
+} from "./filter/schema-filter";
 
 // ユーティリティ
 export {

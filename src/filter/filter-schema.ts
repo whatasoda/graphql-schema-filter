@@ -62,6 +62,11 @@ export async function filterSchemaForRole(
   // 1. @expose ディレクティブをパース
   const exposeParser = new ExposeParser(schema);
 
+  // DEBUG: パース結果を出力
+  if (process.env.DEBUG_EXPOSE_PARSER) {
+    exposeParser.debug();
+  }
+
   // 2. 開始点を決定
   let finalEntryPoints: {
     queries: string[];

@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "example": "bun run scripts/example.ts",
     "example:basic": "bun run examples/basic-usage.ts",
     "example:api": "bun run examples/api-integration.ts"
   },

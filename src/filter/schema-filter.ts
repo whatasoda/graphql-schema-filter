@@ -77,15 +77,28 @@ export class SchemaFilter {
     const mutationType = this.buildRootType("Mutation");
     const subscriptionType = this.buildRootType("Subscription");
 
-    // filteredTypeMap から型配列を作成（ルート型を除く）
-    const types = Array.from(this.filteredTypeMap.values());
+    // NOTE: GraphQLSchema は Query/Mutation から参照される型を自動的に含めるため、
+    // types 配列は空で問題ない。明示的に types を渡すと重複エラーが発生する。
+    // 参照されない孤立した型のみを明示的に含める必要があるが、
+    // フィルタリング後のスキーマでは孤立した型は存在しない想定。
+
+    // DEBUG
+    if (process.env.DEBUG_FIELD_FILTERING) {
+      const typeNames = Array.from(this.filteredTypeMap.keys());
+      console.log(`[DEBUG] filteredTypeMap contains ${typeNames.length} types:`, typeNames.join(", "));
+
+      // 重複チェック
+      const duplicates = typeNames.filter((name, index) => typeNames.indexOf(name) !== index);
+      if (duplicates.length > 0) {
+        console.log(`[DEBUG] WARNING: Duplicate types in filteredTypeMap:`, duplicates);
+      }
+    }
 
     // 新しいスキーマを構築
     return new GraphQLSchema({
       query: queryType,
       mutation: mutationType,
       subscription: subscriptionType,
-      types,
     });
   }
 
@@ -134,6 +147,12 @@ export class SchemaFilter {
       const filteredType = this.filterType(type);
       if (filteredType) {
         this.filteredTypeMap.set(typeName, filteredType);
+
+        // DEBUG
+        if (process.env.DEBUG_FIELD_FILTERING && typeName === "BillingInfo") {
+          const billingFields = (filteredType as GraphQLObjectType).getFields();
+          console.log(`[DEBUG] Filtered BillingInfo fields:`, Object.keys(billingFields));
+        }
       }
     }
   }
@@ -166,11 +185,22 @@ export class SchemaFilter {
       return undefined;
     }
 
-    return new GraphQLObjectType({
+    const result = new GraphQLObjectType({
       name: rootType.name,
       description: rootType.description,
       fields: filteredFields,
     });
+
+    // DEBUG
+    if (process.env.DEBUG_FIELD_FILTERING) {
+      console.log(`[DEBUG] Built ${rootType.name} with ${Object.keys(filteredFields).length} fields`);
+      for (const [fieldName, config] of Object.entries(filteredFields)) {
+        const typeName = config.type.toString();
+        console.log(`[DEBUG]   ${fieldName}: ${typeName}`);
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -207,11 +237,17 @@ export class SchemaFilter {
       return null;
     }
 
+    // Interface 参照も filteredTypeMap の型に置き換える
+    const filteredInterfaces = type.getInterfaces().map((iface) => {
+      const filtered = this.filteredTypeMap.get(iface.name);
+      return (filtered ?? iface) as GraphQLInterfaceType;
+    });
+
     return new GraphQLObjectType({
       name: type.name,
       description: type.description,
       fields: filteredFields,
-      interfaces: type.getInterfaces(),
+      interfaces: filteredInterfaces,
       astNode: type.astNode,
       extensionASTNodes: type.extensionASTNodes,
       extensions: type.extensions,
@@ -231,11 +267,17 @@ export class SchemaFilter {
       return null;
     }
 
+    // Interface 参照も filteredTypeMap の型に置き換える
+    const filteredInterfaces = type.getInterfaces().map((iface) => {
+      const filtered = this.filteredTypeMap.get(iface.name);
+      return (filtered ?? iface) as GraphQLInterfaceType;
+    });
+
     return new GraphQLInterfaceType({
       name: type.name,
       description: type.description,
       fields: filteredFields,
-      interfaces: type.getInterfaces(),
+      interfaces: filteredInterfaces,
       astNode: type.astNode,
       extensionASTNodes: type.extensionASTNodes,
       extensions: type.extensions,
@@ -280,6 +322,11 @@ export class SchemaFilter {
         this.config.fieldRetention === "all-for-included-type"
           ? true
           : this.exposeParser.isFieldExposed(type.name, fieldName, this.role);
+
+      // DEBUG
+      if (process.env.DEBUG_FIELD_FILTERING && (type.name === "BillingInfo" || type.name === "User")) {
+        console.log(`[DEBUG] ${type.name}.${fieldName}: shouldInclude=${shouldInclude}, role=${this.role}`);
+      }
 
       if (shouldInclude) {
         filteredFields[fieldName] = this.convertFieldToConfig(field);
@@ -394,6 +441,14 @@ export class SchemaFilter {
 
     // 名前付き型：フィルタリングされた型があればそれを使用
     const filteredType = this.filteredTypeMap.get(type.name);
+
+    // DEBUG
+    if (process.env.DEBUG_FIELD_FILTERING) {
+      if (!filteredType && !TypeKind.isScalar(type)) {
+        console.log(`[DEBUG] replaceTypeReferences(${type.name}): NOT in filteredTypeMap, using original`);
+      }
+    }
+
     return (filteredType ?? type) as GraphQLType;
   }
 }

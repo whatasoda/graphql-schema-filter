@@ -10,10 +10,17 @@
 // メイン関数
 export { filterSchemaForRole } from "./filter/filter-schema";
 
-// 主要クラス
-export { ReachabilityAnalyzer } from "./analyzer/reachability";
-export { ExposeParser } from "./parser/expose-parser";
-export { SchemaFilter } from "./filter/schema-filter";
+// 純粋関数（旧クラスの代替）
+export {
+  parseExposeDirectives,
+  isFieldExposed,
+  getExposedFields,
+  debugExposeDirectives,
+} from "./parser/expose-parser";
+
+export { computeReachability, analyzeReachability } from "./analyzer/reachability";
+
+export { buildFilteredSchema } from "./filter/schema-filter";
 
 // ユーティリティ
 export {
@@ -27,6 +34,8 @@ export {
 
 // 型定義
 export type {
+  EntryPoints,
+  ParsedExposeDirectives,
   ReachabilityConfig,
   SchemaFilterConfig,
   FilterSchemaOptions,

@@ -3,6 +3,31 @@
  */
 
 /**
+ * エントリーポイントの定義
+ */
+export interface EntryPoints {
+  readonly queries: readonly string[];
+  readonly mutations: readonly string[];
+  readonly types: readonly string[];
+}
+
+/**
+ * @expose ディレクティブのパース結果
+ */
+export interface ParsedExposeDirectives {
+  /**
+   * フィールドレベルの公開設定
+   * Map<型名, Map<フィールド名, タグ配列>>
+   */
+  readonly fieldExposeMap: ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>;
+
+  /**
+   * @disableAutoExpose が指定された型の集合
+   */
+  readonly typeDisableAutoExposeSet: ReadonlySet<string>;
+}
+
+/**
  * 到達可能性解析の設定
  */
 export interface ReachabilityConfig {
@@ -51,11 +76,7 @@ export interface FilterSchemaOptions {
   /**
    * 明示的な開始点（autoInferEntryPoints が false の場合に使用）
    */
-  entryPoints?: {
-    queries?: string[];
-    mutations?: string[];
-    types?: string[];
-  };
+  entryPoints?: Partial<EntryPoints>;
 
   /**
    * 到達可能性解析の設定

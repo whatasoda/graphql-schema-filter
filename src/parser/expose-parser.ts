@@ -33,6 +33,7 @@ interface FieldExposeInfo {
 export class ExposeParser {
   private schema: GraphQLSchema;
   public fieldExposeMap: Map<string, Map<string, string[]>> = new Map();
+  private typeDisableAutoExposeSet: Set<string> = new Set();
 
   constructor(schema: GraphQLSchema) {
     this.schema = schema;
@@ -66,13 +67,21 @@ export class ExposeParser {
   private parseObjectOrInterface(
     type: GraphQLObjectType | GraphQLInterfaceType
   ): void {
+    // 型レベルの @disableAutoExpose をチェック
+    const hasDisableAutoExpose = type.astNode?.directives?.some(
+      (d) => d.name.value === "disableAutoExpose"
+    );
+    if (hasDisableAutoExpose) {
+      this.typeDisableAutoExposeSet.add(type.name);
+    }
+
     // フィールドレベルの @expose を取得
     const fields = type.getFields();
     for (const [fieldName, field] of Object.entries(fields)) {
       const fieldTags = this.extractTagsFromDirectives(
         field.astNode?.directives ?? []
       );
-      if (fieldTags.length > 0) {
+      if (fieldTags !== undefined) {
         this.setFieldExpose(type.name, fieldName, fieldTags);
       }
     }
@@ -88,7 +97,7 @@ export class ExposeParser {
       const fieldTags = this.extractTagsFromDirectives(
         field.astNode?.directives ?? []
       );
-      if (fieldTags.length > 0) {
+      if (fieldTags !== undefined) {
         this.setFieldExpose(type.name, fieldName, fieldTags);
       }
     }
@@ -96,12 +105,15 @@ export class ExposeParser {
 
   /**
    * AST ノードから @expose ディレクティブのロールを抽出
+   * @returns ディレクティブが存在する場合は tags 配列、存在しない場合は undefined
    */
-  private extractTagsFromDirectives(directives: readonly any[]): string[] {
+  private extractTagsFromDirectives(directives: readonly any[]): string[] | undefined {
+    let hasExposeDirective = false;
     const allTags: string[] = [];
 
     for (const directive of directives) {
       if (directive.name.value === "expose") {
+        hasExposeDirective = true;
         const tagsArg = directive.arguments?.find(
           (arg: any) => arg.name.value === "tags"
         );
@@ -112,6 +124,11 @@ export class ExposeParser {
           allTags.push(...tags);
         }
       }
+    }
+
+    // ディレクティブが存在しない場合は undefined を返す
+    if (!hasExposeDirective) {
+      return undefined;
     }
 
     return Array.from(new Set(allTags)); // 重複を除去
@@ -136,7 +153,10 @@ export class ExposeParser {
    *
    * ルール:
    * - フィールドに @expose がある場合、そのロールリストで判定
-   * - フィールドに @expose がない場合、公開しない（デフォルト非公開）
+   * - フィールドに @expose がない場合:
+   *   - Query/Mutation/Subscription 型: 非公開（除外）
+   *   - @disableAutoExpose が付いた型: 非公開（除外）
+   *   - その他の output type: 公開（デフォルト公開）
    */
   isFieldExposed(typeName: string, fieldName: string, role: string): boolean {
     // フィールドレベルの @expose をチェック
@@ -145,8 +165,25 @@ export class ExposeParser {
       return fieldTags.includes(role);
     }
 
-    // @expose がない場合は非公開
-    return false;
+    // @expose がない場合の判定
+    // Root 型または @disableAutoExpose が付いている型は除外
+    if (this.isRootType(typeName) || this.typeDisableAutoExposeSet.has(typeName)) {
+      return false;
+    }
+
+    // その他の output type はデフォルト公開
+    return true;
+  }
+
+  /**
+   * 指定された型が Root 型（Query/Mutation/Subscription）かを判定
+   */
+  private isRootType(typeName: string): boolean {
+    return (
+      typeName === this.schema.getQueryType()?.name ||
+      typeName === this.schema.getMutationType()?.name ||
+      typeName === this.schema.getSubscriptionType()?.name
+    );
   }
 
   /**
@@ -174,10 +211,23 @@ export class ExposeParser {
    * デバッグ用：すべての @expose 情報を出力
    */
   debug(): void {
-    console.log("=== Field-level @expose ===");
-    for (const [typeName, fieldMap] of this.fieldExposeMap.entries()) {
-      for (const [fieldName, tags] of fieldMap.entries()) {
-        console.log(`${typeName}.${fieldName}: [${tags.join(", ")}]`);
+    console.log("=== Types with @disableAutoExpose ===");
+    if (this.typeDisableAutoExposeSet.size === 0) {
+      console.log("  (none)");
+    } else {
+      for (const typeName of this.typeDisableAutoExposeSet) {
+        console.log(`  ${typeName}`);
+      }
+    }
+
+    console.log("\n=== Field-level @expose ===");
+    if (this.fieldExposeMap.size === 0) {
+      console.log("  (none)");
+    } else {
+      for (const [typeName, fieldMap] of this.fieldExposeMap.entries()) {
+        for (const [fieldName, tags] of fieldMap.entries()) {
+          console.log(`${typeName}.${fieldName}: [${tags.join(", ")}]`);
+        }
       }
     }
   }

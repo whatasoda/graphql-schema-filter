@@ -39,15 +39,25 @@ The library implements a **3-phase filtering pipeline**:
 
 **Location:** `src/parser/expose-parser.ts`
 
-Extracts `@expose` directives from GraphQL schema AST and builds a field-level map:
+Extracts `@expose` and `@disableAutoExpose` directives from GraphQL schema AST and builds two data structures:
 
 - `fieldExposeMap`: Field-level exposure rules for Object/Interface/InputObject fields (e.g., `salary: Float @expose(tags: ["admin"])`)
+- `typeDisableAutoExposeSet`: Set of type names with `@disableAutoExpose` directive
 
 **Key behavior:**
 
-- **Output types (Object/Interface)**: Fields without `@expose` are **excluded** by default
-- **Input types (InputObject)**: Fields without `@expose` are **included** by default (permissive mode)
-- `@expose` is only supported on fields, not on types themselves
+- **Output types (Object/Interface)**:
+  - Fields without `@expose` are **included** by default (auto-exposed)
+  - Use `@expose` to restrict fields to specific roles or exclude fields with `@expose(tags: [])`
+- **Query/Mutation/Subscription root types**:
+  - Fields without `@expose` are **excluded** by default
+  - Must explicitly mark fields with `@expose` to make them accessible
+- **Types with `@disableAutoExpose`**:
+  - Treated like root types - fields without `@expose` are **excluded**
+  - Useful for nested query structures or security-sensitive types
+- **Input types (InputObject)**:
+  - Fields without `@expose` are **included** by default (permissive mode)
+  - Use `@expose` only to restrict specific fields
 
 ### 2. Reachability Analysis Phase (`ReachabilityAnalyzer`)
 

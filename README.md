@@ -19,10 +19,11 @@ GraphQL schema filtering library with `@expose` directive support for role-based
 
 ## Quick Start
 
-### 1. Define @expose directive in your schema
+### 1. Define directives in your schema
 
 ```graphql
 directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+directive @disableAutoExpose on OBJECT | INTERFACE
 
 type Query {
   users: [User!]! @expose(tags: ["readonly", "admin"])
@@ -30,17 +31,20 @@ type Query {
 }
 
 type User {
-  id: ID! @expose(tags: ["readonly", "admin"])
-  name: String! @expose(tags: ["readonly", "admin"])
+  # Fields without @expose are auto-exposed (default public)
+  id: ID!
+  name: String!
+  email: String!
+  # Only admin can access
   salary: Float @expose(tags: ["admin"])
-  # Fields without @expose are not exposed
-  password: String
+  # Explicitly excluded with empty tags
+  password: String @expose(tags: [])
 }
 
 input CreateUserInput {
   name: String!
   email: String!
-  # Only admin can set salary (enforced by @expose)
+  # Only admin can set salary
   salary: Float @expose(tags: ["admin"])
   # Fields without @expose are included by default (permissive mode)
   password: String
@@ -73,39 +77,84 @@ The library implements a type reachability closure algorithm:
 
 ## @expose Directive Rules
 
-### Output Types (Object, Interface)
+### Output Types (Object, Interface) - Default Public
 
-For output types, fields **must** have `@expose` to be included in the filtered schema:
+For output types, fields **without `@expose` are auto-exposed** (default public):
 
 ```graphql
 type User {
-  id: ID! @expose(tags: ["readonly", "admin"])
-  name: String! @expose(tags: ["readonly", "admin"])
-  # Only admin can access
+  # Auto-exposed (no @expose needed)
+  id: ID!
+  name: String!
+  email: String!
+
+  # Restrict to specific roles
   salary: Float @expose(tags: ["admin"])
-  # No @expose = not accessible to any role
-  password: String
+
+  # Explicitly exclude with empty tags
+  password: String @expose(tags: [])
 }
 ```
 
-**Default behavior:** Fields without `@expose` are **excluded** from the filtered schema.
+**Default behavior:** Fields without `@expose` are **included** (auto-exposed). Use `@expose` to:
+- **Restrict** fields to specific roles: `@expose(tags: ["admin"])`
+- **Exclude** fields from all roles: `@expose(tags: [])`
 
-### Input Types (InputObject)
+### Query/Mutation Root Types - Explicit Required
 
-For input types, the behavior is more permissive to maintain API compatibility:
+For Query and Mutation root types, fields **must** have `@expose` to be accessible:
+
+```graphql
+type Query {
+  # Must be explicitly marked
+  users: [User!]! @expose(tags: ["readonly", "admin"])
+  adminUsers: [User!]! @expose(tags: ["admin"])
+
+  # Without @expose = not accessible
+  internalQuery: String
+}
+```
+
+**Default behavior:** Fields without `@expose` are **excluded**. This ensures only intended endpoints are exposed.
+
+### @disableAutoExpose Directive
+
+Apply to Object/Interface types to treat them like root types (explicit exposure required):
+
+```graphql
+type AdminQueries @disableAutoExpose {
+  # Must be explicitly marked
+  sensitiveData: String @expose(tags: ["admin"])
+
+  # Without @expose = excluded
+  internalData: String
+}
+```
+
+**Use cases:**
+- Nested query structures (delegated resolvers)
+- Types that should require explicit field marking
+- Security-sensitive types
+
+### Input Types (InputObject) - Permissive Mode
+
+For input types, the behavior is permissive to maintain API compatibility:
 
 ```graphql
 input CreateUserInput {
+  # Included by default
   name: String!
   email: String!
-  # Only admin can set this field
+
+  # Restrict to specific roles
   salary: Float @expose(tags: ["admin"])
-  # No @expose = included by default (permissive mode)
+
+  # Still included (permissive)
   password: String
 }
 ```
 
-**Default behavior:** Fields without `@expose` are **included** in the filtered schema. Use `@expose` only to **restrict** specific fields to certain roles.
+**Default behavior:** Fields without `@expose` are **included**. Use `@expose` only to **restrict** specific fields to certain roles.
 
 ## API Reference
 

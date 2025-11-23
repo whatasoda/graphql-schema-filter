@@ -4,7 +4,7 @@
  * 到達可能性アナライザー、@expose パーサー、スキーマフィルターを統合
  */
 
-import { GraphQLSchema } from "graphql";
+import { GraphQLSchema, getNamedType } from "graphql";
 import {
   ReachabilityAnalyzer,
   ReachabilityConfig,
@@ -131,9 +131,14 @@ function inferEntryPointsFromExpose(
   const queryType = schema.getQueryType();
   if (queryType) {
     const queryFields = queryType.getFields();
-    for (const [fieldName] of Object.entries(queryFields)) {
+    for (const [fieldName, field] of Object.entries(queryFields)) {
       if (exposeParser.isFieldExposed("Query", fieldName, role)) {
         queries.push(fieldName);
+        // Query フィールドの返り値型をエントリーポイントに追加
+        const returnType = getNamedType(field.type);
+        if (!types.includes(returnType.name)) {
+          types.push(returnType.name);
+        }
       }
     }
   }
@@ -142,22 +147,15 @@ function inferEntryPointsFromExpose(
   const mutationType = schema.getMutationType();
   if (mutationType) {
     const mutationFields = mutationType.getFields();
-    for (const [fieldName] of Object.entries(mutationFields)) {
+    for (const [fieldName, field] of Object.entries(mutationFields)) {
       if (exposeParser.isFieldExposed("Mutation", fieldName, role)) {
         mutations.push(fieldName);
+        // Mutation フィールドの返り値型をエントリーポイントに追加
+        const returnType = getNamedType(field.type);
+        if (!types.includes(returnType.name)) {
+          types.push(returnType.name);
+        }
       }
-    }
-  }
-
-  // 明示的に @expose が付けられた型を収集
-  const typeMap = schema.getTypeMap();
-  for (const [typeName, type] of Object.entries(typeMap)) {
-    // Introspection 型や組み込み型はスキップ
-    if (typeName.startsWith("__")) continue;
-    if (["Query", "Mutation", "Subscription"].includes(typeName)) continue;
-
-    if (exposeParser.isTypeExposed(typeName, role)) {
-      types.push(typeName);
     }
   }
 

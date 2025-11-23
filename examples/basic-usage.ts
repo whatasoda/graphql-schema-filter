@@ -12,19 +12,30 @@ import { filterSchemaForRole } from "../src";
 
 // サンプルスキーマを定義
 const schema = buildSchema(`
-  directive @expose(tags: [String!]!) repeatable on OBJECT | FIELD_DEFINITION
+  directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 
   type Query {
     users: [User!]! @expose(tags: ["readonly", "admin"])
     adminUsers: [User!]! @expose(tags: ["admin"])
+    createUser(input: CreateUserInput!): User! @expose(tags: ["admin"])
   }
 
-  type User @expose(tags: ["readonly", "admin"]) {
-    id: ID!
-    name: String!
-    email: String!
+  type User {
+    id: ID! @expose(tags: ["readonly", "admin"])
+    name: String! @expose(tags: ["readonly", "admin"])
+    email: String! @expose(tags: ["readonly", "admin"])
     # admin のみがアクセス可能
     salary: Float @expose(tags: ["admin"])
+    # @expose なしのフィールドはフィルタリングで除外される
+    password: String
+  }
+
+  input CreateUserInput {
+    name: String!
+    email: String!
+    # admin のみが設定可能（@expose がある場合のみ制限）
+    salary: Float @expose(tags: ["admin"])
+    # @expose なしのフィールドはデフォルトで含まれる（寛容モード）
     password: String
   }
 `);

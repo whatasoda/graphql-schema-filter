@@ -22,16 +22,28 @@ GraphQL schema filtering library with `@expose` directive support for role-based
 ### 1. Define @expose directive in your schema
 
 ```graphql
-directive @expose(tags: [String!]!) repeatable on OBJECT | FIELD_DEFINITION
+directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 
 type Query {
   users: [User!]! @expose(tags: ["readonly", "admin"])
+  createUser(input: CreateUserInput!): User! @expose(tags: ["admin"])
 }
 
-type User @expose(tags: ["readonly", "admin"]) {
-  id: ID!
-  name: String!
+type User {
+  id: ID! @expose(tags: ["readonly", "admin"])
+  name: String! @expose(tags: ["readonly", "admin"])
   salary: Float @expose(tags: ["admin"])
+  # Fields without @expose are not exposed
+  password: String
+}
+
+input CreateUserInput {
+  name: String!
+  email: String!
+  # Only admin can set salary (enforced by @expose)
+  salary: Float @expose(tags: ["admin"])
+  # Fields without @expose are included by default (permissive mode)
+  password: String
 }
 ```
 
@@ -61,35 +73,39 @@ The library implements a type reachability closure algorithm:
 
 ## @expose Directive Rules
 
-### Type-level Application
+### Output Types (Object, Interface)
 
-When applied to a type, all fields are exposed by default to the specified tags:
-
-```graphql
-type Project @expose(tags: ["readonly", "admin"]) {
-  id: ID! # Exposed to readonly, admin
-  name: String! # Exposed to readonly, admin
-}
-```
-
-### Field-level Override
-
-Field-level `@expose` overrides type-level settings:
+For output types, fields **must** have `@expose` to be included in the filtered schema:
 
 ```graphql
-type User @expose(tags: ["readonly", "admin"]) {
-  id: ID!
-  name: String!
+type User {
+  id: ID! @expose(tags: ["readonly", "admin"])
+  name: String! @expose(tags: ["readonly", "admin"])
   # Only admin can access
   salary: Float @expose(tags: ["admin"])
   # No @expose = not accessible to any role
-  password: String!
+  password: String
 }
 ```
 
-### Default Behavior
+**Default behavior:** Fields without `@expose` are **excluded** from the filtered schema.
 
-Without `@expose`, types/fields are **not exposed** to any role.
+### Input Types (InputObject)
+
+For input types, the behavior is more permissive to maintain API compatibility:
+
+```graphql
+input CreateUserInput {
+  name: String!
+  email: String!
+  # Only admin can set this field
+  salary: Float @expose(tags: ["admin"])
+  # No @expose = included by default (permissive mode)
+  password: String
+}
+```
+
+**Default behavior:** Fields without `@expose` are **included** in the filtered schema. Use `@expose` only to **restrict** specific fields to certain roles.
 
 ## API Reference
 

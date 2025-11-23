@@ -6,6 +6,7 @@ import {
   GraphQLSchema,
   GraphQLObjectType,
   GraphQLInterfaceType,
+  GraphQLInputObjectType,
   GraphQLField,
 } from "graphql";
 import { TypeKind } from "../utils/type-utils";
@@ -14,14 +15,6 @@ import { TypeKind } from "../utils/type-utils";
  * @expose ディレクティブの情報
  */
 export interface ExposeDirective {
-  tags: string[];
-}
-
-/**
- * 型レベルの @expose 情報
- */
-interface TypeExposeInfo {
-  typeName: string;
   tags: string[];
 }
 
@@ -39,8 +32,7 @@ interface FieldExposeInfo {
  */
 export class ExposeParser {
   private schema: GraphQLSchema;
-  private typeExposeMap: Map<string, string[]> = new Map();
-  private fieldExposeMap: Map<string, Map<string, string[]>> = new Map();
+  public fieldExposeMap: Map<string, Map<string, string[]>> = new Map();
 
   constructor(schema: GraphQLSchema) {
     this.schema = schema;
@@ -57,9 +49,13 @@ export class ExposeParser {
       // Introspection 型や組み込み型はスキップ
       if (typeName.startsWith("__")) continue;
 
-      // Object/Interface 型のみ処理
+      // Object/Interface 型の処理
       if (TypeKind.isObject(type) || TypeKind.isInterface(type)) {
         this.parseObjectOrInterface(type);
+      }
+      // InputObject 型の処理
+      else if (TypeKind.isInputObject(type)) {
+        this.parseInputObject(type);
       }
     }
   }
@@ -70,15 +66,23 @@ export class ExposeParser {
   private parseObjectOrInterface(
     type: GraphQLObjectType | GraphQLInterfaceType
   ): void {
-    // 型レベルの @expose を取得
-    const typeTags = this.extractTagsFromDirectives(
-      type.astNode?.directives ?? []
-    );
-    if (typeTags.length > 0) {
-      this.typeExposeMap.set(type.name, typeTags);
-    }
-
     // フィールドレベルの @expose を取得
+    const fields = type.getFields();
+    for (const [fieldName, field] of Object.entries(fields)) {
+      const fieldTags = this.extractTagsFromDirectives(
+        field.astNode?.directives ?? []
+      );
+      if (fieldTags.length > 0) {
+        this.setFieldExpose(type.name, fieldName, fieldTags);
+      }
+    }
+  }
+
+  /**
+   * InputObject 型の @expose を解析
+   */
+  private parseInputObject(type: GraphQLInputObjectType): void {
+    // InputObject のフィールドレベルの @expose を取得
     const fields = type.getFields();
     for (const [fieldName, field] of Object.entries(fields)) {
       const fieldTags = this.extractTagsFromDirectives(
@@ -131,9 +135,8 @@ export class ExposeParser {
    * 指定されたロールがフィールドにアクセス可能かを判定
    *
    * ルール:
-   * 1. フィールドに @expose がある場合、そのロールリストで判定（型レベルをオーバーライド）
-   * 2. フィールドに @expose がなく、型に @expose がある場合、型のロールリストで判定
-   * 3. どちらにも @expose がない場合、公開しない（デフォルト非公開）
+   * - フィールドに @expose がある場合、そのロールリストで判定
+   * - フィールドに @expose がない場合、公開しない（デフォルト非公開）
    */
   isFieldExposed(typeName: string, fieldName: string, role: string): boolean {
     // フィールドレベルの @expose をチェック
@@ -142,36 +145,7 @@ export class ExposeParser {
       return fieldTags.includes(role);
     }
 
-    // 型レベルの @expose をチェック
-    const typeTags = this.typeExposeMap.get(typeName);
-    if (typeTags !== undefined) {
-      return typeTags.includes(role);
-    }
-
-    // どちらにもない場合は非公開
-    return false;
-  }
-
-  /**
-   * 指定されたロールが型にアクセス可能かを判定
-   */
-  isTypeExposed(typeName: string, role: string): boolean {
-    const typeTags = this.typeExposeMap.get(typeName);
-    if (typeTags !== undefined) {
-      return typeTags.includes(role);
-    }
-
-    // 型に @expose がない場合は、フィールドレベルで判定
-    // （少なくとも1つのフィールドが公開されていれば型も公開）
-    const fieldMap = this.fieldExposeMap.get(typeName);
-    if (fieldMap) {
-      for (const fieldTags of fieldMap.values()) {
-        if (fieldTags.includes(role)) {
-          return true;
-        }
-      }
-    }
-
+    // @expose がない場合は非公開
     return false;
   }
 
@@ -200,12 +174,7 @@ export class ExposeParser {
    * デバッグ用：すべての @expose 情報を出力
    */
   debug(): void {
-    console.log("=== Type-level @expose ===");
-    for (const [typeName, tags] of this.typeExposeMap.entries()) {
-      console.log(`${typeName}: [${tags.join(", ")}]`);
-    }
-
-    console.log("\n=== Field-level @expose ===");
+    console.log("=== Field-level @expose ===");
     for (const [typeName, fieldMap] of this.fieldExposeMap.entries()) {
       for (const [fieldName, tags] of fieldMap.entries()) {
         console.log(`${typeName}.${fieldName}: [${tags.join(", ")}]`);

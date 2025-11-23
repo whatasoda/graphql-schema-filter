@@ -115,13 +115,18 @@ export class SchemaFilter {
         continue;
       }
 
-      // Scalar/Enum/InputObject はそのまま使用
-      if (
-        TypeKind.isScalar(type) ||
-        TypeKind.isEnum(type) ||
-        TypeKind.isInputObject(type)
-      ) {
+      // Scalar/Enum はそのまま使用
+      if (TypeKind.isScalar(type) || TypeKind.isEnum(type)) {
         this.filteredTypeMap.set(typeName, type);
+        continue;
+      }
+
+      // InputObject はフィールドフィルタリングを適用
+      if (TypeKind.isInputObject(type)) {
+        const filteredInputType = this.filterInputObjectType(type);
+        if (filteredInputType) {
+          this.filteredTypeMap.set(typeName, filteredInputType);
+        }
         continue;
       }
 
@@ -179,7 +184,7 @@ export class SchemaFilter {
     } else if (TypeKind.isUnion(type)) {
       return type; // Union はそのまま
     } else if (TypeKind.isInputObject(type)) {
-      return type; // InputObject はそのまま
+      return this.filterInputObjectType(type);
     } else if (TypeKind.isEnum(type)) {
       return type; // Enum はそのまま
     } else if (TypeKind.isScalar(type)) {
@@ -238,6 +243,29 @@ export class SchemaFilter {
   }
 
   /**
+   * InputObject 型をフィルタリング
+   */
+  private filterInputObjectType(
+    type: GraphQLInputObjectType
+  ): GraphQLInputObjectType | null {
+    const filteredFields = this.filterInputObjectFields(type);
+
+    // フィールドが空の場合は型を削除
+    if (Object.keys(filteredFields).length === 0) {
+      return null;
+    }
+
+    return new GraphQLInputObjectType({
+      name: type.name,
+      description: type.description,
+      fields: filteredFields,
+      astNode: type.astNode,
+      extensionASTNodes: type.extensionASTNodes,
+      extensions: type.extensions,
+    });
+  }
+
+  /**
    * Object 型のフィールドをフィルタリング
    */
   private filterObjectFields(
@@ -280,6 +308,43 @@ export class SchemaFilter {
       if (shouldInclude) {
         filteredFields[fieldName] = this.convertFieldToConfig(field);
       }
+    }
+
+    return filteredFields;
+  }
+
+  /**
+   * InputObject 型のフィールドをフィルタリング
+   */
+  private filterInputObjectFields(
+    type: GraphQLInputObjectType
+  ): GraphQLInputFieldConfigMap {
+    const fields = type.getFields();
+    const filteredFields: GraphQLInputFieldConfigMap = {};
+
+    for (const [fieldName, field] of Object.entries(fields)) {
+      // InputObject フィールドは寛容モード:
+      // @expose がある場合のみチェックし、ない場合はデフォルトで含める
+      const fieldTags = this.exposeParser.fieldExposeMap
+        .get(type.name)
+        ?.get(fieldName);
+
+      if (fieldTags !== undefined) {
+        // @expose がある場合、ロールが含まれているかチェック
+        if (!fieldTags.includes(this.role)) {
+          continue; // このロールには公開しない
+        }
+      }
+
+      // フィールドを含める
+      filteredFields[fieldName] = {
+        type: this.replaceTypeReferences(field.type),
+        description: field.description,
+        defaultValue: field.defaultValue,
+        deprecationReason: field.deprecationReason,
+        astNode: field.astNode,
+        extensions: field.extensions,
+      };
     }
 
     return filteredFields;

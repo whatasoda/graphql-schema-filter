@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
 import { computeReachability, getRootType } from "./reachability";
 import type { EntryPoints } from "../types";
+import { parseExposeDirectives } from "../parser/expose-parser";
 
 describe("computeReachability", () => {
   test("should compute reachable types from Query fields", () => {
@@ -34,7 +35,8 @@ describe("computeReachability", () => {
       types: [],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints);
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives);
 
     // Should include User and Post (via User.posts)
     expect(reachableTypes.has("User")).toBe(true);
@@ -71,7 +73,8 @@ describe("computeReachability", () => {
       types: [],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints);
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives);
 
     // Should include both User and CreateUserInput
     expect(reachableTypes.has("User")).toBe(true);
@@ -104,7 +107,8 @@ describe("computeReachability", () => {
       types: [],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints);
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives);
 
     // Should include Post and CreatePostInput
     expect(reachableTypes.has("Post")).toBe(true);
@@ -137,7 +141,8 @@ describe("computeReachability", () => {
       types: ["User"],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints);
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives);
 
     // Should include User
     expect(reachableTypes.has("User")).toBe(true);
@@ -170,7 +175,8 @@ describe("computeReachability", () => {
       types: [],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints);
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives);
 
     // Should handle circular User -> User reference
     expect(reachableTypes.has("User")).toBe(true);
@@ -204,7 +210,8 @@ describe("computeReachability", () => {
       types: [],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints, {
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives, {
       includeInterfaceImplementations: true,
     });
 
@@ -241,7 +248,8 @@ describe("computeReachability", () => {
       types: [],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints, {
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives, {
       includeInterfaceImplementations: false,
     });
 
@@ -276,7 +284,8 @@ describe("computeReachability", () => {
       types: [],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints);
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives);
 
     // Should include both User and Post (members of SearchResult)
     expect(reachableTypes.has("SearchResult")).toBe(true);
@@ -314,7 +323,8 @@ describe("computeReachability", () => {
       types: [],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints);
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives);
 
     // Should follow nested InputObject types
     expect(reachableTypes.has("CreateUserInput")).toBe(true);
@@ -345,8 +355,10 @@ describe("computeReachability", () => {
       types: [],
     };
 
+    const parsedDirectives = parseExposeDirectives(schema);
+
     // With includeReferenced: 'none'
-    const reachableTypesNone = computeReachability(schema, entryPoints, {
+    const reachableTypesNone = computeReachability(schema, entryPoints, "test", parsedDirectives, {
       includeReferenced: "none",
     });
 
@@ -355,7 +367,7 @@ describe("computeReachability", () => {
     expect(reachableTypesNone.has("Post")).toBe(false);
 
     // With includeReferenced: 'all' (default)
-    const reachableTypesAll = computeReachability(schema, entryPoints, {
+    const reachableTypesAll = computeReachability(schema, entryPoints, "test", parsedDirectives, {
       includeReferenced: "all",
     });
 
@@ -377,7 +389,8 @@ describe("computeReachability", () => {
       types: [],
     };
 
-    const reachableTypes = computeReachability(schema, entryPoints);
+    const parsedDirectives = parseExposeDirectives(schema);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives);
 
     // Should return empty set (no reachable types)
     expect(reachableTypes.size).toBe(0);
@@ -396,8 +409,9 @@ describe("computeReachability", () => {
       types: [],
     };
 
+    const parsedDirectives = parseExposeDirectives(schema);
     // Should not throw, just warn
-    const reachableTypes = computeReachability(schema, entryPoints);
+    const reachableTypes = computeReachability(schema, entryPoints, "test", parsedDirectives);
 
     expect(reachableTypes.size).toBe(0);
   });

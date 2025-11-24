@@ -21,7 +21,6 @@ export {
 // Reachability関連の純粋関数
 export {
   computeReachability,
-  analyzeReachability,
   traverseObjectOrInterface,
   traverseUnion,
   traverseInputObject,

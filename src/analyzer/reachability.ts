@@ -12,7 +12,11 @@ import {
   GraphQLInterfaceType,
   GraphQLUnionType,
 } from "graphql";
-import type { EntryPoints, ReachabilityConfig } from "../types";
+import type {
+  EntryPoints,
+  ReachabilityConfig,
+  ParsedExposeDirectives,
+} from "../types";
 import {
   getNamedType,
   TypeKind,
@@ -20,6 +24,7 @@ import {
   getInputFieldTypes,
   isIntrospectionType,
 } from "../utils/type-utils";
+import { isFieldExposed } from "../parser/expose-parser";
 
 const DEFAULT_CONFIG: ReachabilityConfig = {
   includeInterfaceImplementations: true,
@@ -32,13 +37,20 @@ const DEFAULT_CONFIG: ReachabilityConfig = {
 export function traverseObjectOrInterface(
   type: GraphQLObjectType | GraphQLInterfaceType,
   schema: GraphQLSchema,
+  role: string,
+  parsedDirectives: ParsedExposeDirectives,
   config: ReachabilityConfig,
   addToQueue: (type: GraphQLNamedType) => void
 ): void {
   const fields = type.getFields();
 
-  // すべてのフィールドを走査
+  // すべてのフィールドを走査（ただし role に公開されているもののみ）
   Object.values(fields).forEach((field) => {
+    // フィールドが role に公開されているかチェック
+    if (!isFieldExposed(schema, parsedDirectives, type.name, field.name, role)) {
+      return; // 公開されていないフィールドはスキップ
+    }
+
     // 戻り値の型を追加
     if (config.includeReferenced === "all") {
       const returnType = getNamedType(field.type);
@@ -88,6 +100,8 @@ export function traverseInputObject(
 export function traverseType(
   type: GraphQLNamedType,
   schema: GraphQLSchema,
+  role: string,
+  parsedDirectives: ParsedExposeDirectives,
   config: ReachabilityConfig,
   addToQueue: (type: GraphQLNamedType) => void
 ): void {
@@ -97,7 +111,7 @@ export function traverseType(
   }
 
   if (TypeKind.isObject(type) || TypeKind.isInterface(type)) {
-    traverseObjectOrInterface(type, schema, config, addToQueue);
+    traverseObjectOrInterface(type, schema, role, parsedDirectives, config, addToQueue);
   } else if (TypeKind.isUnion(type)) {
     traverseUnion(type, schema, addToQueue);
   } else if (TypeKind.isInputObject(type)) {
@@ -174,16 +188,21 @@ export function addTypeToQueue(
  *
  * @param schema - GraphQLスキーマ
  * @param entryPoints - エントリーポイント（queries, mutations, types）
+ * @param role - 対象ロール
+ * @param parsedDirectives - パース済みの @expose ディレクティブ情報
  * @param config - 到達可能性解析の設定
  * @returns 到達可能な型名の集合
  *
  * @remarks
  * BFSアルゴリズムを使用して、エントリーポイントから推移的に参照される
  * すべての型を収集します。内部状態を使用しますが、外部APIは純粋関数です。
+ * ロールに公開されていないフィールド経由の型は到達不能と判定されます。
  */
 export function computeReachability(
   schema: GraphQLSchema,
   entryPoints: EntryPoints,
+  role: string,
+  parsedDirectives: ParsedExposeDirectives,
   config?: Partial<ReachabilityConfig>
 ): Set<string> {
   const finalConfig: ReachabilityConfig = { ...DEFAULT_CONFIG, ...config };
@@ -236,30 +255,8 @@ export function computeReachability(
     reachableTypes.add(type.name);
 
     // 型の種類に応じて参照を辿る
-    traverseType(type, schema, finalConfig, addToQueue);
+    traverseType(type, schema, role, parsedDirectives, finalConfig, addToQueue);
   }
 
   return reachableTypes;
-}
-
-/**
- * スキーマから到達可能な型を計算するヘルパー関数
- * @deprecated Use computeReachability instead
- */
-export function analyzeReachability(
-  schema: GraphQLSchema,
-  entryPoints: {
-    queries?: string[];
-    mutations?: string[];
-    types?: string[];
-  },
-  config?: Partial<ReachabilityConfig>
-): Set<string> {
-  const normalizedEntryPoints: EntryPoints = {
-    queries: entryPoints.queries ?? [],
-    mutations: entryPoints.mutations ?? [],
-    types: entryPoints.types ?? [],
-  };
-
-  return computeReachability(schema, normalizedEntryPoints, config);
 }

@@ -72,6 +72,8 @@ export async function filterSchemaForRole(
   const reachableTypes = computeReachability(
     schema,
     finalEntryPoints,
+    role,
+    parsedDirectives,
     reachabilityConfig
   );
 

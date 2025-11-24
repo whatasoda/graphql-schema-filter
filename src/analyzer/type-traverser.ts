@@ -56,19 +56,12 @@ interface TraversalOutput__UnionMember extends TraversalOutputBase {
   unionName: string;
 }
 
-interface TraversalOutput__InterfaceImplementation extends TraversalOutputBase {
-  source: "interfaceImplementation";
-  implementationType: GraphQLObjectType;
-  interfaceName: string;
-}
-
 type TraversalOutput =
   | TraversalOutput__OutputField
   | TraversalOutput__InterfaceField
   | TraversalOutput__InputField
   | TraversalOutput__ImplementedInterface
-  | TraversalOutput__UnionMember
-  | TraversalOutput__InterfaceImplementation;
+  | TraversalOutput__UnionMember;
 
 export function createTypeTraverserInternal(schema: GraphQLSchema) {
   return {
@@ -111,17 +104,6 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
           ],
           typeName: type.name,
           fieldName: field.name,
-        };
-      }
-
-      // Interface の実装型を yield
-      const implementations = schema.getPossibleTypes(type);
-      for (const implType of implementations) {
-        yield {
-          source: "interfaceImplementation" as const,
-          implementationType: implType,
-          children: [implType],
-          interfaceName: type.name,
         };
       }
     },

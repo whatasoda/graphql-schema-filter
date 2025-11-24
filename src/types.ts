@@ -22,13 +22,6 @@ export interface ParsedExposeDirectives {
 }
 
 /**
- * 到達可能性解析の設定
- */
-export interface ReachabilityConfig {
-  // Reserved for future configuration options
-}
-
-/**
  * スキーマフィルタの設定
  */
 export interface SchemaFilterConfig {
@@ -48,11 +41,6 @@ export interface FilterSchemaOptions {
    * 対象ロール
    */
   role: string;
-
-  /**
-   * 到達可能性解析の設定
-   */
-  reachabilityConfig?: Partial<ReachabilityConfig>;
 
   /**
    * フィールド保持方針の設定

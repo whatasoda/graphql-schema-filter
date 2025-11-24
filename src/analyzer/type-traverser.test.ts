@@ -349,7 +349,8 @@ describe("createTypeTraverserInternal", () => {
       expect(userOutputs.length).toBeGreaterThan(0);
       expect(
         userOutputs.every(
-          (o) => o.source === "outputField" || o.source === "implementedInterface"
+          (o) =>
+            o.source === "outputField" || o.source === "implementedInterface"
         )
       ).toBe(true);
 
@@ -427,7 +428,10 @@ describe("traverseGraphQLType", () => {
         schema,
         entrypoints: [userType as any],
         filter: (output) => {
-          if (output.source === "outputField" && output.fieldName === "secret") {
+          if (
+            output.source === "outputField" &&
+            output.fieldName === "secret"
+          ) {
             return false;
           }
           return true;
@@ -557,63 +561,5 @@ describe("traverseGraphQLType", () => {
 
     // Should yield no types
     expect(types.length).toBe(0);
-  });
-
-  test("should filter interface implementations", () => {
-    const schema = buildSchema(`
-      type Query {
-        node: Node
-      }
-
-      interface Node {
-        id: ID!
-      }
-
-      type User implements Node {
-        id: ID!
-        name: String!
-      }
-
-      type Post implements Node {
-        id: ID!
-        title: String!
-      }
-    `);
-
-    const nodeType = schema.getType("Node");
-    expect(nodeType).toBeDefined();
-
-    // Filter that blocks interface implementations
-    const typesFiltered = [
-      ...traverseGraphQLType({
-        schema,
-        entrypoints: [nodeType as any],
-        filter: (output) => {
-          if (output.source === "interfaceImplementation") {
-            return false;
-          }
-          return true;
-        },
-      }),
-    ];
-
-    const filteredNames = typesFiltered.map((t) => t.name);
-    expect(filteredNames).toContain("Node");
-    expect(filteredNames).not.toContain("User");
-    expect(filteredNames).not.toContain("Post");
-
-    // Filter that allows interface implementations
-    const typesAllowed = [
-      ...traverseGraphQLType({
-        schema,
-        entrypoints: [nodeType as any],
-        filter: () => true,
-      }),
-    ];
-
-    const allowedNames = typesAllowed.map((t) => t.name);
-    expect(allowedNames).toContain("Node");
-    expect(allowedNames).toContain("User");
-    expect(allowedNames).toContain("Post");
   });
 });

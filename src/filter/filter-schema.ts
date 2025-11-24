@@ -39,7 +39,7 @@ export async function filterSchemaForRole(
   schema: GraphQLSchema,
   options: FilterSchemaOptions
 ): Promise<GraphQLSchema> {
-  const { role, reachabilityConfig, filterConfig } = options;
+  const { role, filterConfig } = options;
 
   // Phase 1: @expose ディレクティブをパース
   const parsedDirectives = parseExposeDirectives(schema);
@@ -50,12 +50,7 @@ export async function filterSchemaForRole(
   }
 
   // Phase 3: 到達可能な型を計算
-  const reachableTypes = computeReachability(
-    schema,
-    role,
-    parsedDirectives,
-    reachabilityConfig
-  );
+  const reachableTypes = computeReachability(schema, role, parsedDirectives);
 
   console.log(`Reachable types: ${reachableTypes.size}`);
 

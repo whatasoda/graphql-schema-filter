@@ -6,11 +6,9 @@
  */
 
 import { GraphQLSchema } from "graphql";
-import type { ReachabilityConfig, ParsedExposeDirectives } from "../types";
+import type { ParsedExposeDirectives } from "../types";
 import { isFieldExposed } from "../parser/expose-parser";
 import { traverseGraphQLType } from "./type-traverser";
-
-const DEFAULT_CONFIG: ReachabilityConfig = {};
 
 /**
  * DEBUG_REACHABILITY=1 でデバッグログを有効化
@@ -40,12 +38,10 @@ export function* traverseReachableTypes({
   schema,
   role,
   parsedDirectives,
-  config,
 }: {
   schema: GraphQLSchema;
   role: string;
   parsedDirectives: ParsedExposeDirectives;
-  config: ReachabilityConfig;
 }): Generator<string> {
   let discoveredCount = 0;
 
@@ -73,10 +69,6 @@ export function* traverseReachableTypes({
 
       if (output.source === "implementedInterface") {
         return true;
-      }
-
-      if (output.source === "interfaceImplementation") {
-        return false;
       }
 
       if (output.source === "unionMember") {
@@ -130,17 +122,9 @@ export function* traverseReachableTypes({
 export function computeReachability(
   schema: GraphQLSchema,
   role: string,
-  parsedDirectives: ParsedExposeDirectives,
-  config?: Partial<ReachabilityConfig>
+  parsedDirectives: ParsedExposeDirectives
 ): Set<string> {
-  const finalConfig: ReachabilityConfig = { ...DEFAULT_CONFIG, ...config };
-
   return new Set<string>(
-    traverseReachableTypes({
-      schema,
-      role,
-      parsedDirectives,
-      config: finalConfig,
-    })
+    traverseReachableTypes({ schema, role, parsedDirectives })
   );
 }

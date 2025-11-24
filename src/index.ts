@@ -41,7 +41,6 @@ export { isBuiltInScalar } from "./utils/type-utils";
 // 型定義
 export type {
   ParsedExposeDirectives,
-  ReachabilityConfig,
   SchemaFilterConfig,
   FilterSchemaOptions,
 } from "./types";

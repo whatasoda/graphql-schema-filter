@@ -1,0 +1,455 @@
+import { describe, test, expect } from "bun:test";
+import { buildSchema } from "graphql";
+import {
+  computeReachability,
+  getRootType,
+} from "../../src/analyzer/reachability";
+import type { EntryPoints } from "../../src/types";
+
+describe("computeReachability", () => {
+  test("should compute reachable types from Query fields", () => {
+    const schema = buildSchema(`
+      type Query {
+        user: User
+        post: Post
+      }
+
+      type User {
+        id: ID!
+        name: String!
+        posts: [Post!]!
+      }
+
+      type Post {
+        id: ID!
+        title: String!
+        author: User!
+      }
+
+      type UnreachableType {
+        id: ID!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["user"],
+      mutations: [],
+      types: [],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints);
+
+    // Should include User and Post (via User.posts)
+    expect(reachableTypes.has("User")).toBe(true);
+    expect(reachableTypes.has("Post")).toBe(true);
+
+    // Should include scalars
+    expect(reachableTypes.has("ID")).toBe(true);
+    expect(reachableTypes.has("String")).toBe(true);
+
+    // Should not include UnreachableType
+    expect(reachableTypes.has("UnreachableType")).toBe(false);
+  });
+
+  test("should follow argument types", () => {
+    const schema = buildSchema(`
+      type Query {
+        createUser(input: CreateUserInput!): User
+      }
+
+      type User {
+        id: ID!
+        name: String!
+      }
+
+      input CreateUserInput {
+        name: String!
+        email: String!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["createUser"],
+      mutations: [],
+      types: [],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints);
+
+    // Should include both User and CreateUserInput
+    expect(reachableTypes.has("User")).toBe(true);
+    expect(reachableTypes.has("CreateUserInput")).toBe(true);
+  });
+
+  test("should handle Mutation fields", () => {
+    const schema = buildSchema(`
+      type Query {
+        hello: String
+      }
+
+      type Mutation {
+        createPost(input: CreatePostInput!): Post
+      }
+
+      type Post {
+        id: ID!
+        title: String!
+      }
+
+      input CreatePostInput {
+        title: String!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: [],
+      mutations: ["createPost"],
+      types: [],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints);
+
+    // Should include Post and CreatePostInput
+    expect(reachableTypes.has("Post")).toBe(true);
+    expect(reachableTypes.has("CreatePostInput")).toBe(true);
+
+    // Should not include Query
+    expect(reachableTypes.has("Query")).toBe(false);
+  });
+
+  test("should handle explicitly added types", () => {
+    const schema = buildSchema(`
+      type Query {
+        hello: String
+      }
+
+      type User {
+        id: ID!
+        name: String!
+      }
+
+      type Post {
+        id: ID!
+        author: User!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: [],
+      mutations: [],
+      types: ["User"],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints);
+
+    // Should include User
+    expect(reachableTypes.has("User")).toBe(true);
+
+    // Should not include Post (not reachable from User)
+    expect(reachableTypes.has("Post")).toBe(false);
+  });
+
+  test("should handle circular references", () => {
+    const schema = buildSchema(`
+      type Query {
+        user: User
+      }
+
+      type User {
+        id: ID!
+        friends: [User!]!
+        posts: [Post!]!
+      }
+
+      type Post {
+        id: ID!
+        author: User!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["user"],
+      mutations: [],
+      types: [],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints);
+
+    // Should handle circular User -> User reference
+    expect(reachableTypes.has("User")).toBe(true);
+    expect(reachableTypes.has("Post")).toBe(true);
+  });
+
+  test("should follow interface implementations when includeInterfaceImplementations is true", () => {
+    const schema = buildSchema(`
+      type Query {
+        node(id: ID!): Node
+      }
+
+      interface Node {
+        id: ID!
+      }
+
+      type User implements Node {
+        id: ID!
+        name: String!
+      }
+
+      type Post implements Node {
+        id: ID!
+        title: String!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["node"],
+      mutations: [],
+      types: [],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints, {
+      includeInterfaceImplementations: true,
+    });
+
+    // Should include both User and Post (implementations of Node)
+    expect(reachableTypes.has("Node")).toBe(true);
+    expect(reachableTypes.has("User")).toBe(true);
+    expect(reachableTypes.has("Post")).toBe(true);
+  });
+
+  test("should not follow interface implementations when includeInterfaceImplementations is false", () => {
+    const schema = buildSchema(`
+      type Query {
+        node(id: ID!): Node
+      }
+
+      interface Node {
+        id: ID!
+      }
+
+      type User implements Node {
+        id: ID!
+        name: String!
+      }
+
+      type Post implements Node {
+        id: ID!
+        title: String!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["node"],
+      mutations: [],
+      types: [],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints, {
+      includeInterfaceImplementations: false,
+    });
+
+    // Should include Node but not its implementations
+    expect(reachableTypes.has("Node")).toBe(true);
+    expect(reachableTypes.has("User")).toBe(false);
+    expect(reachableTypes.has("Post")).toBe(false);
+  });
+
+  test("should handle Union types", () => {
+    const schema = buildSchema(`
+      type Query {
+        search: SearchResult
+      }
+
+      union SearchResult = User | Post
+
+      type User {
+        id: ID!
+        name: String!
+      }
+
+      type Post {
+        id: ID!
+        title: String!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["search"],
+      mutations: [],
+      types: [],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints);
+
+    // Should include both User and Post (members of SearchResult)
+    expect(reachableTypes.has("SearchResult")).toBe(true);
+    expect(reachableTypes.has("User")).toBe(true);
+    expect(reachableTypes.has("Post")).toBe(true);
+  });
+
+  test("should handle nested InputObject types", () => {
+    const schema = buildSchema(`
+      type Query {
+        createUser(input: CreateUserInput!): User
+      }
+
+      type User {
+        id: ID!
+      }
+
+      input CreateUserInput {
+        profile: ProfileInput!
+      }
+
+      input ProfileInput {
+        name: String!
+        settings: SettingsInput
+      }
+
+      input SettingsInput {
+        theme: String
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["createUser"],
+      mutations: [],
+      types: [],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints);
+
+    // Should follow nested InputObject types
+    expect(reachableTypes.has("CreateUserInput")).toBe(true);
+    expect(reachableTypes.has("ProfileInput")).toBe(true);
+    expect(reachableTypes.has("SettingsInput")).toBe(true);
+  });
+
+  test("should respect includeReferenced config option", () => {
+    const schema = buildSchema(`
+      type Query {
+        user: User
+      }
+
+      type User {
+        id: ID!
+        posts: [Post!]!
+      }
+
+      type Post {
+        id: ID!
+        title: String!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["user"],
+      mutations: [],
+      types: [],
+    };
+
+    // With includeReferenced: 'none'
+    const reachableTypesNone = computeReachability(schema, entryPoints, {
+      includeReferenced: "none",
+    });
+
+    // Should only include User (entry point return type) and scalars
+    expect(reachableTypesNone.has("User")).toBe(true);
+    expect(reachableTypesNone.has("Post")).toBe(false);
+
+    // With includeReferenced: 'all' (default)
+    const reachableTypesAll = computeReachability(schema, entryPoints, {
+      includeReferenced: "all",
+    });
+
+    // Should include both User and Post
+    expect(reachableTypesAll.has("User")).toBe(true);
+    expect(reachableTypesAll.has("Post")).toBe(true);
+  });
+
+  test("should handle empty entry points", () => {
+    const schema = buildSchema(`
+      type Query {
+        hello: String
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: [],
+      mutations: [],
+      types: [],
+    };
+
+    const reachableTypes = computeReachability(schema, entryPoints);
+
+    // Should return empty set (no reachable types)
+    expect(reachableTypes.size).toBe(0);
+  });
+
+  test("should warn for non-existent query fields", () => {
+    const schema = buildSchema(`
+      type Query {
+        hello: String
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["nonExistent"],
+      mutations: [],
+      types: [],
+    };
+
+    // Should not throw, just warn
+    const reachableTypes = computeReachability(schema, entryPoints);
+
+    expect(reachableTypes.size).toBe(0);
+  });
+});
+
+describe("getRootType", () => {
+  test("should return Query type", () => {
+    const schema = buildSchema(`
+      type Query {
+        hello: String
+      }
+    `);
+
+    const queryType = getRootType(schema, "Query");
+
+    expect(queryType).toBeDefined();
+    expect(queryType?.name).toBe("Query");
+  });
+
+  test("should return Mutation type", () => {
+    const schema = buildSchema(`
+      type Query {
+        hello: String
+      }
+
+      type Mutation {
+        createUser: User
+      }
+
+      type User {
+        id: ID!
+      }
+    `);
+
+    const mutationType = getRootType(schema, "Mutation");
+
+    expect(mutationType).toBeDefined();
+    expect(mutationType?.name).toBe("Mutation");
+  });
+
+  test("should return undefined if root type does not exist", () => {
+    const schema = buildSchema(`
+      type Query {
+        hello: String
+      }
+    `);
+
+    const mutationType = getRootType(schema, "Mutation");
+
+    expect(mutationType).toBeUndefined();
+  });
+});

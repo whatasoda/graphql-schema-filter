@@ -4,7 +4,13 @@
  * 到達可能性アナライザー、@expose パーサー、スキーマフィルターを統合
  */
 
-import { GraphQLSchema, getNamedType } from "graphql";
+import {
+  GraphQLSchema,
+  getNamedType,
+  printSchema,
+  parse,
+  buildASTSchema,
+} from "graphql";
 import type { EntryPoints, FilterSchemaOptions } from "../types";
 import {
   parseExposeDirectives,
@@ -12,7 +18,7 @@ import {
   debugExposeDirectives,
 } from "../parser/expose-parser";
 import { computeReachability } from "../analyzer/reachability";
-import { buildFilteredSchema } from "./schema-filter";
+import { filterDefinitionsAST } from "./ast-filter";
 import type { ParsedExposeDirectives } from "../types";
 
 /**
@@ -23,11 +29,13 @@ import type { ParsedExposeDirectives } from "../types";
  * @returns フィルタリング済みのGraphQLスキーマ
  *
  * @remarks
- * 4フェーズのパイプラインを使用:
- * 1. Parse: @expose ディレクティブを抽出
+ * 6フェーズのパイプラインを使用:
+ * 1. Parse: @expose ディレクティブを抽出（Schema API）
  * 2. Infer Entry Points: エントリーポイントを決定（自動推論または明示的指定）
- * 3. Reachability: BFSで到達可能な型を計算
- * 4. Filter: スキーマをフィルタリングして再構築
+ * 3. Reachability: BFSで到達可能な型を計算（Schema API）
+ * 4. AST Conversion: Schema を SDL → AST に変換
+ * 5. AST Filtering: AST 定義を到達可能性・expose ルールでフィルタリング
+ * 6. Schema Building: フィルタリング済み AST から新しいスキーマを構築
  */
 export async function filterSchemaForRole(
   schema: GraphQLSchema,
@@ -68,14 +76,24 @@ export async function filterSchemaForRole(
 
   console.log(`Reachable types: ${reachableTypes.size}`);
 
-  // Phase 4: スキーマをフィルタリング
-  const filteredSchema = buildFilteredSchema(
-    schema,
+  // Phase 4: Schema → AST に変換
+  const sdl = printSchema(schema);
+  const ast = parse(sdl);
+
+  // Phase 5: AST をフィルタリング
+  const filteredDefinitions = filterDefinitionsAST(
+    ast,
     role,
     reachableTypes,
     parsedDirectives,
     filterConfig
   );
+
+  // Phase 6: フィルタリング済み AST から新しいスキーマを構築
+  const filteredSchema = buildASTSchema({
+    kind: "Document",
+    definitions: filteredDefinitions,
+  });
 
   console.log(`Filtered schema created for role "${role}"`);
 

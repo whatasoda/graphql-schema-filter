@@ -31,22 +31,16 @@ export {
   addTypeToQueue,
 } from "./analyzer/reachability";
 
-// Schema Filter関連の純粋関数
+// AST Filter関連の純粋関数
+export { filterDefinitionsAST } from "./filter/ast-filter";
+
+// AST ユーティリティ
 export {
-  buildFilteredSchema,
-  buildFilteredTypeMap,
-  updateTypeReferencesInMap,
-  buildRootType,
-  filterType,
-  filterObjectType,
-  filterInterfaceType,
-  filterInputObjectType,
-  filterObjectFields,
-  filterInterfaceFields,
-  filterInputObjectFields,
-  convertFieldToConfig,
-  replaceTypeReferences,
-} from "./filter/schema-filter";
+  getTypeNameFromTypeNode,
+  isRootTypeName,
+  isFieldExposedFromAST,
+  isInputFieldExposedFromAST,
+} from "./utils/ast-utils";
 
 // ユーティリティ
 export {

@@ -25,10 +25,7 @@ GraphQL schema filtering library with `@expose` directive support for role-based
 bun install
 
 # Run basic example
-bun run example:basic
-
-# Run API integration example
-bun run example:api
+bun example basic
 ```
 
 ## Core Architecture

@@ -1,10 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema, printSchema } from "graphql";
-import {
-  buildFilteredSchema,
-  buildFilteredTypeMap,
-} from "../../src/filter/schema-filter";
-import { parseExposeDirectives } from "../../src/parser/expose-parser";
+import { buildFilteredSchema, buildFilteredTypeMap } from "./schema-filter";
+import { parseExposeDirectives } from "../parser/expose-parser";
 
 describe("buildFilteredSchema", () => {
   test("should filter schema based on reachable types and exposed fields", () => {

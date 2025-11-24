@@ -1,10 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import {
-  computeReachability,
-  getRootType,
-} from "../../src/analyzer/reachability";
-import type { EntryPoints } from "../../src/types";
+import { computeReachability, getRootType } from "./reachability";
+import type { EntryPoints } from "../types";
 
 describe("computeReachability", () => {
   test("should compute reachable types from Query fields", () => {

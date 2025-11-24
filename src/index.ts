@@ -35,6 +35,7 @@ export {
 export {
   buildFilteredSchema,
   buildFilteredTypeMap,
+  updateTypeReferencesInMap,
   buildRootType,
   filterType,
   filterObjectType,

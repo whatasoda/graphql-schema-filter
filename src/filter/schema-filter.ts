@@ -54,6 +54,10 @@ export function replaceTypeReferences(
       console.log(
         `[DEBUG] replaceTypeReferences(${type.name}): NOT in filteredTypeMap, using original`
       );
+    } else if (filteredType && !TypeKind.isScalar(type)) {
+      console.log(
+        `[DEBUG] replaceTypeReferences(${type.name}): found in filteredTypeMap, using filtered (same=${filteredType === type})`
+      );
     }
   }
 
@@ -66,20 +70,21 @@ export function replaceTypeReferences(
  */
 export function convertFieldToConfig(
   field: GraphQLField<unknown, unknown>,
-  filteredTypeMap: Map<string, GraphQLNamedType>
+  filteredTypeMap: Map<string, GraphQLNamedType>,
+  replaceReferences = true
 ): GraphQLFieldConfig<unknown, unknown> {
   const args: GraphQLFieldConfigArgumentMap = {};
 
   for (const arg of field.args) {
     args[arg.name] = {
-      type: replaceTypeReferences(arg.type, filteredTypeMap),
+      type: replaceReferences ? replaceTypeReferences(arg.type, filteredTypeMap) : arg.type,
       description: arg.description,
       defaultValue: arg.defaultValue,
     };
   }
 
   return {
-    type: replaceTypeReferences(field.type, filteredTypeMap),
+    type: replaceReferences ? replaceTypeReferences(field.type, filteredTypeMap) : field.type,
     description: field.description,
     args,
     deprecationReason: field.deprecationReason,
@@ -139,7 +144,8 @@ export function filterObjectFields(
   role: string,
   parsedDirectives: ParsedExposeDirectives,
   finalConfig: SchemaFilterConfig,
-  filteredTypeMap: Map<string, GraphQLNamedType>
+  filteredTypeMap: Map<string, GraphQLNamedType>,
+  replaceReferences = true
 ): GraphQLFieldConfigMap<unknown, unknown> {
   const fields = type.getFields();
   const filteredFields: GraphQLFieldConfigMap<unknown, unknown> = {};
@@ -162,7 +168,7 @@ export function filterObjectFields(
     }
 
     if (shouldInclude) {
-      filteredFields[fieldName] = convertFieldToConfig(field, filteredTypeMap);
+      filteredFields[fieldName] = convertFieldToConfig(field, filteredTypeMap, replaceReferences);
     }
   }
 
@@ -178,7 +184,8 @@ export function filterInterfaceFields(
   role: string,
   parsedDirectives: ParsedExposeDirectives,
   finalConfig: SchemaFilterConfig,
-  filteredTypeMap: Map<string, GraphQLNamedType>
+  filteredTypeMap: Map<string, GraphQLNamedType>,
+  replaceReferences = true
 ): GraphQLFieldConfigMap<unknown, unknown> {
   const fields = type.getFields();
   const filteredFields: GraphQLFieldConfigMap<unknown, unknown> = {};
@@ -191,7 +198,7 @@ export function filterInterfaceFields(
         : isFieldExposed(schema, parsedDirectives, type.name, fieldName, role);
 
     if (shouldInclude) {
-      filteredFields[fieldName] = convertFieldToConfig(field, filteredTypeMap);
+      filteredFields[fieldName] = convertFieldToConfig(field, filteredTypeMap, replaceReferences);
     }
   }
 
@@ -246,7 +253,8 @@ export function filterInterfaceType(
     role,
     parsedDirectives,
     finalConfig,
-    filteredTypeMap
+    filteredTypeMap,
+    false // Don't replace references during initial build
   );
 
   // フィールドが空の場合は型を削除
@@ -255,9 +263,9 @@ export function filterInterfaceType(
   }
 
   // Interface 参照も filteredTypeMap の型に置き換える
+  // Note: Keep original interfaces during build, will be updated in root type construction
   const filteredInterfaces = type.getInterfaces().map((iface) => {
-    const filtered = filteredTypeMap.get(iface.name);
-    return (filtered ?? iface) as GraphQLInterfaceType;
+    return iface;
   });
 
   return new GraphQLInterfaceType({
@@ -288,7 +296,8 @@ export function filterObjectType(
     role,
     parsedDirectives,
     finalConfig,
-    filteredTypeMap
+    filteredTypeMap,
+    false // Don't replace references during initial build
   );
 
   // フィールドが空の場合は型を削除
@@ -297,9 +306,9 @@ export function filterObjectType(
   }
 
   // Interface 参照も filteredTypeMap の型に置き換える
+  // Note: Keep original interfaces during build, will be updated in root type construction
   const filteredInterfaces = type.getInterfaces().map((iface) => {
-    const filtered = filteredTypeMap.get(iface.name);
-    return (filtered ?? iface) as GraphQLInterfaceType;
+    return iface;
   });
 
   return new GraphQLObjectType({
@@ -421,6 +430,167 @@ export function buildFilteredTypeMap(
 }
 
 /**
+ * filteredTypeMap内の全ての型参照を更新する
+ * Object/Interface型のフィールドの型参照をfilteredTypeMapの型に置き換える
+ */
+export function updateTypeReferencesInMap(
+  filteredTypeMap: Map<string, GraphQLNamedType>,
+  schema: GraphQLSchema,
+  role: string,
+  parsedDirectives: ParsedExposeDirectives,
+  finalConfig: SchemaFilterConfig
+): Map<string, GraphQLNamedType> {
+  const updatedTypeMap = new Map<string, GraphQLNamedType>();
+
+  // Create a lookup function that prefers updatedTypeMap over filteredTypeMap
+  // This ensures we always use the most recent version of a type
+  const combinedLookup = (typeName: string): GraphQLNamedType | undefined => {
+    return updatedTypeMap.get(typeName) ?? filteredTypeMap.get(typeName);
+  };
+
+  // Create a temporary map wrapper for replaceTypeReferences
+  const combinedTypeMap = new Map<string, GraphQLNamedType>();
+  // Pre-populate with filteredTypeMap
+  for (const [name, type] of filteredTypeMap.entries()) {
+    combinedTypeMap.set(name, type);
+  }
+
+  for (const [typeName, type] of filteredTypeMap.entries()) {
+    // Scalar/Enum はそのまま使用
+    if (TypeKind.isScalar(type) || TypeKind.isEnum(type)) {
+      updatedTypeMap.set(typeName, type);
+      continue;
+    }
+
+    // InputObject はフィールド参照を更新
+    if (TypeKind.isInputObject(type)) {
+      // Pass 1で作成した型ではなく、元のスキーマの型から参照を更新
+      const originalType = schema.getType(typeName);
+      if (!originalType || !TypeKind.isInputObject(originalType)) {
+        console.warn(`[updateTypeReferencesInMap] Could not find original input type for ${typeName}`);
+        updatedTypeMap.set(typeName, type);
+        continue;
+      }
+
+      // filterInputObjectFieldsを使用してフィールドフィルタリングと型参照更新を同時に行う
+      const filteredFields = filterInputObjectFields(
+        originalType,
+        role,
+        parsedDirectives,
+        combinedTypeMap
+      );
+
+      if (Object.keys(filteredFields).length === 0) {
+        // フィールドが空の場合は型を削除（スキップ）
+        continue;
+      }
+
+      const updatedType = new GraphQLInputObjectType({
+        name: type.name,
+        description: type.description,
+        fields: filteredFields,
+        astNode: type.astNode,
+        extensionASTNodes: type.extensionASTNodes,
+        extensions: type.extensions,
+      });
+      updatedTypeMap.set(typeName, updatedType);
+      combinedTypeMap.set(typeName, updatedType); // Update combined map
+      continue;
+    }
+
+    // Object型のフィールド参照を更新
+    if (TypeKind.isObject(type)) {
+      // Pass 1で作成した型ではなく、元のスキーマの型からフィルタリングし直す
+      // これにより古い型参照を完全に排除できる
+      const originalType = schema.getType(typeName);
+      if (!originalType || !TypeKind.isObject(originalType)) {
+        console.warn(`[updateTypeReferencesInMap] Could not find original type for ${typeName}`);
+        updatedTypeMap.set(typeName, type);
+        continue;
+      }
+
+      const filteredFields = filterObjectFields(
+        originalType,
+        schema,
+        role,
+        parsedDirectives,
+        finalConfig,
+        combinedTypeMap,
+        true // Now replace references
+      );
+
+      const filteredInterfaces = originalType.getInterfaces().map((iface) => {
+        const filtered = combinedTypeMap.get(iface.name);
+        return (filtered ?? iface) as GraphQLInterfaceType;
+      });
+
+      const updatedType = new GraphQLObjectType({
+        name: type.name,
+        description: type.description,
+        fields: filteredFields,
+        interfaces: filteredInterfaces,
+        astNode: type.astNode,
+        extensionASTNodes: type.extensionASTNodes,
+        extensions: type.extensions,
+      });
+      updatedTypeMap.set(typeName, updatedType);
+      combinedTypeMap.set(typeName, updatedType); // Update combined map
+      continue;
+    }
+
+    // Interface型のフィールド参照を更新
+    if (TypeKind.isInterface(type)) {
+      // Pass 1で作成した型ではなく、元のスキーマの型からフィルタリングし直す
+      const originalType = schema.getType(typeName);
+      if (!originalType || !TypeKind.isInterface(originalType)) {
+        console.warn(`[updateTypeReferencesInMap] Could not find original interface type for ${typeName}`);
+        updatedTypeMap.set(typeName, type);
+        continue;
+      }
+
+      const filteredFields = filterInterfaceFields(
+        originalType,
+        schema,
+        role,
+        parsedDirectives,
+        finalConfig,
+        combinedTypeMap,
+        true // Now replace references
+      );
+
+      const filteredInterfaces = originalType.getInterfaces().map((iface) => {
+        const filtered = combinedTypeMap.get(iface.name);
+        return (filtered ?? iface) as GraphQLInterfaceType;
+      });
+
+      const updatedType = new GraphQLInterfaceType({
+        name: type.name,
+        description: type.description,
+        fields: filteredFields,
+        interfaces: filteredInterfaces,
+        astNode: type.astNode,
+        extensionASTNodes: type.extensionASTNodes,
+        extensions: type.extensions,
+      });
+      updatedTypeMap.set(typeName, updatedType);
+      combinedTypeMap.set(typeName, updatedType); // Update combined map
+      continue;
+    }
+
+    // Union型はそのまま（メンバー型は自動解決される）
+    if (TypeKind.isUnion(type)) {
+      updatedTypeMap.set(typeName, type);
+      continue;
+    }
+
+    // その他の型はそのまま
+    updatedTypeMap.set(typeName, type);
+  }
+
+  return updatedTypeMap;
+}
+
+/**
  * ルート型（Query/Mutation/Subscription）を構築
  */
 export function buildRootType(
@@ -491,8 +661,9 @@ export function buildRootType(
  * @returns フィルタリング済みのGraphQLスキーマ
  *
  * @remarks
- * 2パスアプローチを使用:
- * - Pass 1: 全ての非ルート型をフィルタリングしてマップに格納
+ * 3パスアプローチを使用:
+ * - Pass 1: 全ての非ルート型をフィルタリングしてマップに格納（元の型参照を使用）
+ * - Pass 1.5: 型参照を更新（filteredTypeMapの型を参照するように）
  * - Pass 2: ルート型を構築（フィルタリングされた型への参照を使用）
  */
 export function buildFilteredSchema(
@@ -504,11 +675,20 @@ export function buildFilteredSchema(
 ): GraphQLSchema {
   const finalConfig: SchemaFilterConfig = { ...DEFAULT_CONFIG, ...config };
 
-  // Pass 1: 全ての非ルート型をフィルタリングしてマップに格納
-  const filteredTypeMap = buildFilteredTypeMap(
+  // Pass 1: 全ての非ルート型をフィルタリングしてマップに格納（元の型参照を使用）
+  const initialTypeMap = buildFilteredTypeMap(
     schema,
     role,
     reachableTypes,
+    parsedDirectives,
+    finalConfig
+  );
+
+  // Pass 1.5: 型参照を更新（filteredTypeMapの型を参照するように）
+  const filteredTypeMap = updateTypeReferencesInMap(
+    initialTypeMap,
+    schema,
+    role,
     parsedDirectives,
     finalConfig
   );

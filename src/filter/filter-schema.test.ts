@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema, printSchema } from "graphql";
-import { filterSchemaForRole } from "../../src/filter/filter-schema";
+import { filterSchemaForRole } from "./filter-schema";
 
 describe("filterSchemaForRole (integration)", () => {
   test("should filter complete schema for user role", async () => {
@@ -84,7 +84,9 @@ describe("filterSchemaForRole (integration)", () => {
     // Should include all queries
     expect(filteredSchemaStr).toContain("users: [User!]!");
     expect(filteredSchemaStr).toContain("adminUsers: [User!]!");
-    expect(filteredSchemaStr).toContain("createUser(input: CreateUserInput!): User!");
+    expect(filteredSchemaStr).toContain(
+      "createUser(input: CreateUserInput!): User!"
+    );
 
     // User should include salary field
     expect(filteredSchemaStr).toContain("salary: Float");
@@ -379,6 +381,8 @@ describe("filterSchemaForRole (integration)", () => {
     const filteredSchemaStr = printSchema(filteredSchema);
 
     // Should preserve field arguments
-    expect(filteredSchemaStr).toContain("user(id: ID!, includeEmail: Boolean): User");
+    expect(filteredSchemaStr).toContain(
+      "user(id: ID!, includeEmail: Boolean): User"
+    );
   });
 });

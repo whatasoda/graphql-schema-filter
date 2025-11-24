@@ -4,7 +4,7 @@ import {
   parseExposeDirectives,
   isFieldExposed,
   getExposedFields,
-} from "../../src/parser/expose-parser";
+} from "./expose-parser";
 
 describe("parseExposeDirectives", () => {
   test("should parse @expose directives from schema", () => {
@@ -29,13 +29,21 @@ describe("parseExposeDirectives", () => {
     const parsed = parseExposeDirectives(schema);
 
     // Query.adminField should have "admin" tag
-    expect(parsed.fieldExposeMap.get("Query")?.get("adminField")).toEqual(["admin"]);
+    expect(parsed.fieldExposeMap.get("Query")?.get("adminField")).toEqual([
+      "admin",
+    ]);
 
     // Query.userField should have both "user" and "admin" tags
-    expect(parsed.fieldExposeMap.get("Query")?.get("userField")).toEqual(["user", "admin"]);
+    expect(parsed.fieldExposeMap.get("Query")?.get("userField")).toEqual([
+      "user",
+      "admin",
+    ]);
 
     // User.email should have "user" and "admin" tags
-    expect(parsed.fieldExposeMap.get("User")?.get("email")).toEqual(["user", "admin"]);
+    expect(parsed.fieldExposeMap.get("User")?.get("email")).toEqual([
+      "user",
+      "admin",
+    ]);
 
     // User.password should have empty tags (explicitly excluded)
     expect(parsed.fieldExposeMap.get("User")?.get("password")).toEqual([]);
@@ -115,7 +123,9 @@ describe("isFieldExposed", () => {
 
     const parsed = parseExposeDirectives(schema);
 
-    expect(isFieldExposed(schema, parsed, "Query", "adminField", "admin")).toBe(true);
+    expect(isFieldExposed(schema, parsed, "Query", "adminField", "admin")).toBe(
+      true
+    );
   });
 
   test("should return false for fields without matching role tag", () => {
@@ -129,7 +139,9 @@ describe("isFieldExposed", () => {
 
     const parsed = parseExposeDirectives(schema);
 
-    expect(isFieldExposed(schema, parsed, "Query", "adminField", "user")).toBe(false);
+    expect(isFieldExposed(schema, parsed, "Query", "adminField", "user")).toBe(
+      false
+    );
   });
 
   test("should return false for Query fields without @expose", () => {
@@ -144,7 +156,9 @@ describe("isFieldExposed", () => {
     const parsed = parseExposeDirectives(schema);
 
     // Query fields without @expose should be excluded
-    expect(isFieldExposed(schema, parsed, "Query", "publicField", "user")).toBe(false);
+    expect(isFieldExposed(schema, parsed, "Query", "publicField", "user")).toBe(
+      false
+    );
   });
 
   test("should return true for non-root type fields without @expose (auto-expose)", () => {
@@ -186,10 +200,14 @@ describe("isFieldExposed", () => {
     const parsed = parseExposeDirectives(schema);
 
     // SecureType.id should not be auto-exposed
-    expect(isFieldExposed(schema, parsed, "SecureType", "id", "admin")).toBe(false);
+    expect(isFieldExposed(schema, parsed, "SecureType", "id", "admin")).toBe(
+      false
+    );
 
     // SecureType.secret should be exposed to admin
-    expect(isFieldExposed(schema, parsed, "SecureType", "secret", "admin")).toBe(true);
+    expect(
+      isFieldExposed(schema, parsed, "SecureType", "secret", "admin")
+    ).toBe(true);
   });
 
   test("should handle empty tags array (explicitly excluded)", () => {
@@ -208,8 +226,12 @@ describe("isFieldExposed", () => {
     const parsed = parseExposeDirectives(schema);
 
     // Field with empty tags should not be exposed to any role
-    expect(isFieldExposed(schema, parsed, "User", "password", "admin")).toBe(false);
-    expect(isFieldExposed(schema, parsed, "User", "password", "user")).toBe(false);
+    expect(isFieldExposed(schema, parsed, "User", "password", "admin")).toBe(
+      false
+    );
+    expect(isFieldExposed(schema, parsed, "User", "password", "user")).toBe(
+      false
+    );
   });
 });
 
@@ -252,7 +274,12 @@ describe("getExposedFields", () => {
     const parsed = parseExposeDirectives(schema);
 
     const userFieldsForUser = getExposedFields(schema, parsed, "User", "user");
-    const userFieldsForAdmin = getExposedFields(schema, parsed, "User", "admin");
+    const userFieldsForAdmin = getExposedFields(
+      schema,
+      parsed,
+      "User",
+      "admin"
+    );
 
     // User role should see id and name (auto-exposed), but not email
     expect(userFieldsForUser.sort()).toEqual(["id", "name"].sort());

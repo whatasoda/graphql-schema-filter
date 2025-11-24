@@ -11,6 +11,7 @@
       "Bash(git log:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
+      "Bash(bun example:*)",
       "Bash(bun quality:*)",
       "Bash(bun typecheck:*)",
       "Bash(bun biome:check:*)",
@@ -19,6 +20,15 @@
       "Bash(bun run quality:*)",
       "Bash(bun run typecheck:*)",
       "Bash(bun run biome:check:*)",
+      "Bash(DEBUG_REACHABILITY=1 bun example:*)",
+      "Bash(DEBUG_EXPOSE_PARSER=1 bun example:*)",
+      "Bash(DEBUG_TYPE_FILTERING=1 bun example:*)",
+      "Bash(DEBUG_FIELD_FILTERING=1 bun example:*)",
+      "Bash(DEBUG_FIELD_FILTERING=1 bun run test:*)",
+      "Bash(DEBUG_REACHABILITY=1 bun run test:*)",
+      "Bash(DEBUG_EXPOSE_PARSER=1 bun run test:*)",
+      "Bash(DEBUG_TYPE_FILTERING=1 bun run test:*)",
+      "Bash(DEBUG_FIELD_FILTERING=1 bun run test:*)",
       "WebSearch",
       "mcp__serena__activate_project",
       "mcp__serena__check_onboarding_performed",
@@ -57,7 +67,14 @@
       "mcp__serena__summarize_changes",
       "mcp__serena__switch_modes"
     ],
-    "deny": ["Bash(bun test:*)", "Bash(bun build:*)"],
+    "deny": [
+      "Bash(bun test:*)",
+      "Bash(DEBUG_REACHABILITY=1 bun test:*)",
+      "Bash(DEBUG_EXPOSE_PARSER=1 bun test:*)",
+      "Bash(DEBUG_TYPE_FILTERING=1 bun test:*)",
+      "Bash(DEBUG_FIELD_FILTERING=1 bun test:*)",
+      "Bash(bun build:*)"
+    ],
     "ask": []
   }
 }

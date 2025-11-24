@@ -6,7 +6,11 @@
 
 import { GraphQLSchema, getNamedType } from "graphql";
 import type { EntryPoints, FilterSchemaOptions } from "../types";
-import { parseExposeDirectives, isFieldExposed, debugExposeDirectives } from "../parser/expose-parser";
+import {
+  parseExposeDirectives,
+  isFieldExposed,
+  debugExposeDirectives,
+} from "../parser/expose-parser";
 import { computeReachability } from "../analyzer/reachability";
 import { buildFilteredSchema } from "./schema-filter";
 import type { ParsedExposeDirectives } from "../types";
@@ -81,9 +85,7 @@ export async function filterSchemaForRole(
 /**
  * 明示的なエントリーポイントをEntryPoints型に正規化
  */
-function normalizeEntryPoints(
-  entryPoints?: Partial<EntryPoints>
-): EntryPoints {
+function normalizeEntryPoints(entryPoints?: Partial<EntryPoints>): EntryPoints {
   return {
     queries: entryPoints?.queries ?? [],
     mutations: entryPoints?.mutations ?? [],

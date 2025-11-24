@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import { computeReachability, getRootType } from "./reachability";
+import { computeReachability, getRootType, traverseReachableTypes } from "./reachability";
 import type { EntryPoints } from "../types";
 import { parseExposeDirectives } from "../parser/expose-parser";
 
@@ -462,5 +462,162 @@ describe("getRootType", () => {
     const mutationType = getRootType(schema, "Mutation");
 
     expect(mutationType).toBeUndefined();
+  });
+});
+
+describe("traverseReachableTypes (generator)", () => {
+  test("should yield types lazily (early termination)", () => {
+    const schema = buildSchema(`
+      type Query {
+        user: User
+      }
+
+      type User {
+        id: ID!
+        name: String!
+        posts: [Post!]!
+      }
+
+      type Post {
+        id: ID!
+        title: String!
+        content: String!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["user"],
+      mutations: [],
+      types: [],
+    };
+
+    const parsedDirectives = parseExposeDirectives(schema);
+    const generator = traverseReachableTypes(
+      schema,
+      entryPoints,
+      "test",
+      parsedDirectives,
+      { includeInterfaceImplementations: true, includeReferenced: "all" }
+    );
+
+    // Take only the first 2 types
+    const firstTwo = [];
+    for (const typeName of generator) {
+      firstTwo.push(typeName);
+      if (firstTwo.length === 2) {
+        break; // Early termination
+      }
+    }
+
+    // Should have stopped early
+    expect(firstTwo.length).toBe(2);
+    expect(firstTwo.includes("User")).toBe(true);
+  });
+
+  test("should produce the same result as computeReachability", () => {
+    const schema = buildSchema(`
+      type Query {
+        user: User
+        post: Post
+      }
+
+      type User {
+        id: ID!
+        name: String!
+        posts: [Post!]!
+      }
+
+      type Post {
+        id: ID!
+        title: String!
+        author: User!
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["user"],
+      mutations: [],
+      types: [],
+    };
+
+    const parsedDirectives = parseExposeDirectives(schema);
+
+    // Using computeReachability
+    const reachableSet = computeReachability(schema, entryPoints, "test", parsedDirectives);
+
+    // Using generator directly
+    const generatorResult = new Set<string>();
+    for (const typeName of traverseReachableTypes(
+      schema,
+      entryPoints,
+      "test",
+      parsedDirectives,
+      { includeInterfaceImplementations: true, includeReferenced: "all" }
+    )) {
+      generatorResult.add(typeName);
+    }
+
+    // Should produce identical results
+    expect(generatorResult).toEqual(reachableSet);
+  });
+
+  test("should support iterator protocol (spread operator)", () => {
+    const schema = buildSchema(`
+      type Query {
+        hello: String
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: ["hello"],
+      mutations: [],
+      types: [],
+    };
+
+    const parsedDirectives = parseExposeDirectives(schema);
+
+    // Using spread operator with generator
+    const typeNames = [
+      ...traverseReachableTypes(
+        schema,
+        entryPoints,
+        "test",
+        parsedDirectives,
+        { includeInterfaceImplementations: true, includeReferenced: "all" }
+      ),
+    ];
+
+    // Should work with iterator protocol
+    expect(typeNames.length).toBeGreaterThan(0);
+    expect(typeNames.includes("String")).toBe(true);
+  });
+
+  test("should handle empty entry points (empty iteration)", () => {
+    const schema = buildSchema(`
+      type Query {
+        hello: String
+      }
+    `);
+
+    const entryPoints: EntryPoints = {
+      queries: [],
+      mutations: [],
+      types: [],
+    };
+
+    const parsedDirectives = parseExposeDirectives(schema);
+
+    const typeNames = [
+      ...traverseReachableTypes(
+        schema,
+        entryPoints,
+        "test",
+        parsedDirectives,
+        { includeInterfaceImplementations: true, includeReferenced: "all" }
+      ),
+    ];
+
+    // Should yield no types
+    expect(typeNames.length).toBe(0);
   });
 });

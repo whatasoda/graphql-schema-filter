@@ -21,10 +21,7 @@ export {
 // Reachability関連の純粋関数
 export {
   computeReachability,
-  traverseObjectOrInterface,
-  traverseUnion,
-  traverseInputObject,
-  traverseType,
+  traverseReachableTypes,
   getRootType,
   addRootField,
   addTypeToQueue,

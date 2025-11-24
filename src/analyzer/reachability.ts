@@ -10,9 +10,7 @@ import type { ReachabilityConfig, ParsedExposeDirectives } from "../types";
 import { isFieldExposed } from "../parser/expose-parser";
 import { traverseGraphQLType } from "./type-traverser";
 
-const DEFAULT_CONFIG: ReachabilityConfig = {
-  includeInterfaceImplementations: true,
-};
+const DEFAULT_CONFIG: ReachabilityConfig = {};
 
 /**
  * DEBUG_REACHABILITY=1 でデバッグログを有効化
@@ -78,7 +76,7 @@ export function* traverseReachableTypes({
       }
 
       if (output.source === "interfaceImplementation") {
-        return config.includeInterfaceImplementations;
+        return false;
       }
 
       if (output.source === "unionMember") {

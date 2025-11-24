@@ -25,11 +25,7 @@ export interface ParsedExposeDirectives {
  * 到達可能性解析の設定
  */
 export interface ReachabilityConfig {
-  /**
-   * Interface の実装型（possibleTypes）も含めるか
-   * @default true
-   */
-  includeInterfaceImplementations: boolean;
+  // Reserved for future configuration options
 }
 
 /**

@@ -182,83 +182,6 @@ describe("computeReachability", () => {
     expect(reachableTypes.has("Post")).toBe(true);
   });
 
-  test("should follow interface implementations when includeInterfaceImplementations is true", () => {
-    const schema = buildSchema(`
-      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
-
-      type Query {
-        node(id: ID!): Node @expose(tags: ["test"])
-      }
-
-      interface Node {
-        id: ID!
-      }
-
-      type User implements Node {
-        id: ID!
-        name: String!
-      }
-
-      type Post implements Node {
-        id: ID!
-        title: String!
-      }
-    `);
-
-    const parsedDirectives = parseExposeDirectives(schema);
-    const reachableTypes = computeReachability(
-      schema,
-      "test",
-      parsedDirectives,
-      {
-        includeInterfaceImplementations: true,
-      }
-    );
-
-    // Should include both User and Post (implementations of Node)
-    expect(reachableTypes.has("Node")).toBe(true);
-    expect(reachableTypes.has("User")).toBe(true);
-    expect(reachableTypes.has("Post")).toBe(true);
-  });
-
-  test("should not follow interface implementations when includeInterfaceImplementations is false", () => {
-    const schema = buildSchema(`
-      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
-
-      type Query {
-        node(id: ID!): Node @expose(tags: ["test"])
-      }
-
-      interface Node {
-        id: ID!
-      }
-
-      type User implements Node {
-        id: ID!
-        name: String!
-      }
-
-      type Post implements Node {
-        id: ID!
-        title: String!
-      }
-    `);
-
-    const parsedDirectives = parseExposeDirectives(schema);
-    const reachableTypes = computeReachability(
-      schema,
-      "test",
-      parsedDirectives,
-      {
-        includeInterfaceImplementations: false,
-      }
-    );
-
-    // Should include Node but not its implementations
-    expect(reachableTypes.has("Node")).toBe(true);
-    expect(reachableTypes.has("User")).toBe(false);
-    expect(reachableTypes.has("Post")).toBe(false);
-  });
 
   test("should handle Union types", () => {
     const schema = buildSchema(`
@@ -382,9 +305,7 @@ describe("traverseReachableTypes (generator)", () => {
       schema,
       role: "test",
       parsedDirectives,
-      config: {
-        includeInterfaceImplementations: true,
-      },
+      config: {},
     });
 
     // Take only the first 3 types
@@ -434,7 +355,7 @@ describe("traverseReachableTypes (generator)", () => {
       schema,
       role: "test",
       parsedDirectives,
-      config: { includeInterfaceImplementations: true },
+      config: {},
     })) {
       generatorResult.add(typeName);
     }
@@ -460,9 +381,7 @@ describe("traverseReachableTypes (generator)", () => {
         schema,
         role: "test",
         parsedDirectives,
-        config: {
-          includeInterfaceImplementations: true,
-        },
+        config: {},
       }),
     ];
 
@@ -488,9 +407,7 @@ describe("traverseReachableTypes (generator)", () => {
         schema,
         role: "test",
         parsedDirectives,
-        config: {
-          includeInterfaceImplementations: true,
-        },
+        config: {},
       }),
     ];
 

@@ -36,7 +36,7 @@ export {
 } from "./utils/ast-utils";
 
 // ユーティリティ
-export { TypeKind, isBuiltInScalar } from "./utils/type-utils";
+export { isBuiltInScalar } from "./utils/type-utils";
 
 // 型定義
 export type {

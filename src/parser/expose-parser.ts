@@ -7,9 +7,11 @@ import {
   GraphQLObjectType,
   GraphQLInterfaceType,
   GraphQLInputObjectType,
+  isObjectType,
+  isInterfaceType,
+  isInputObjectType,
 } from "graphql";
 import type { ParsedExposeDirectives } from "../types";
-import { TypeKind } from "../utils/type-utils";
 
 /**
  * @expose ディレクティブの情報
@@ -51,11 +53,11 @@ export function parseExposeDirectives(
     if (typeName.startsWith("__")) continue;
 
     // Object/Interface 型の処理
-    if (TypeKind.isObject(type) || TypeKind.isInterface(type)) {
+    if (isObjectType(type) || isInterfaceType(type)) {
       parseObjectOrInterface(type, fieldExposeMap, typeDisableAutoExposeSet);
     }
     // InputObject 型の処理
-    else if (TypeKind.isInputObject(type)) {
+    else if (isInputObjectType(type)) {
       parseInputObject(type, fieldExposeMap);
     }
   }
@@ -233,7 +235,7 @@ export function getExposedFields(
   role: string
 ): string[] {
   const type = schema.getType(typeName);
-  if (!type || !(TypeKind.isObject(type) || TypeKind.isInterface(type))) {
+  if (!type || !(isObjectType(type) || isInterfaceType(type))) {
     return [];
   }
 

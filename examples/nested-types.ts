@@ -102,7 +102,9 @@ async function main() {
     (name) => !name.startsWith("__")
   );
 
-  console.log(`  member types: ${memberTypes.length} - ${memberTypes.join(", ")}`);
+  console.log(
+    `  member types: ${memberTypes.length} - ${memberTypes.join(", ")}`
+  );
   console.log(`  admin types: ${adminTypes.length} - ${adminTypes.join(", ")}`);
 
   // BillingInfo が member に含まれていないことを確認

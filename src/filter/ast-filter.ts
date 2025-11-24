@@ -106,7 +106,12 @@ function filterInputObjectFields(
   }
 
   return typeDef.fields.filter((field) =>
-    isInputFieldExposedFromAST(typeDef.name.value, field, parsedDirectives, role)
+    isInputFieldExposedFromAST(
+      typeDef.name.value,
+      field,
+      parsedDirectives,
+      role
+    )
   );
 }
 
@@ -205,7 +210,11 @@ function filterInputObjectTypeDefinition(
   parsedDirectives: ParsedExposeDirectives,
   role: string
 ): InputObjectTypeDefinitionNode | null {
-  const filteredFields = filterInputObjectFields(typeDef, parsedDirectives, role);
+  const filteredFields = filterInputObjectFields(
+    typeDef,
+    parsedDirectives,
+    role
+  );
 
   // フィールドが空の場合は型を削除
   if (!filteredFields || filteredFields.length === 0) {
@@ -355,5 +364,5 @@ export function filterDefinitionsAST(
       // Scalar/Enum はそのまま含める
       return def;
     })
-    .filter((def): def is DefinitionNode => def !== null);
+    .filter((def) => def != null);
 }

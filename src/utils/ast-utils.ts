@@ -2,7 +2,11 @@
  * AST 操作用ユーティリティ関数
  */
 
-import type { TypeNode, FieldDefinitionNode, InputValueDefinitionNode } from "graphql";
+import type {
+  TypeNode,
+  FieldDefinitionNode,
+  InputValueDefinitionNode,
+} from "graphql";
 import type { ParsedExposeDirectives } from "../types";
 
 /**
@@ -31,7 +35,9 @@ export function getTypeNameFromTypeNode(typeNode: TypeNode): string {
  */
 export function isRootTypeName(typeName: string): boolean {
   return (
-    typeName === "Query" || typeName === "Mutation" || typeName === "Subscription"
+    typeName === "Query" ||
+    typeName === "Mutation" ||
+    typeName === "Subscription"
   );
 }
 

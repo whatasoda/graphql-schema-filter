@@ -10,6 +10,7 @@ import {
   GraphQLNamedType,
   GraphQLObjectType,
   GraphQLInterfaceType,
+  GraphQLUnionType,
 } from "graphql";
 import type { EntryPoints, ReachabilityConfig } from "../types";
 import {
@@ -60,7 +61,7 @@ export function traverseObjectOrInterface(
  * Union 型の参照を辿る
  */
 export function traverseUnion(
-  type: GraphQLInterfaceType,
+  type: GraphQLUnionType,
   schema: GraphQLSchema,
   addToQueue: (type: GraphQLNamedType) => void
 ): void {

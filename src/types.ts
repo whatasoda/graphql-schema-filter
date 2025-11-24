@@ -19,7 +19,10 @@ export interface ParsedExposeDirectives {
    * フィールドレベルの公開設定
    * Map<型名, Map<フィールド名, タグ配列>>
    */
-  readonly fieldExposeMap: ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>;
+  readonly fieldExposeMap: ReadonlyMap<
+    string,
+    ReadonlyMap<string, readonly string[]>
+  >;
 
   /**
    * @disableAutoExpose が指定された型の集合

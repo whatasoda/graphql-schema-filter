@@ -56,8 +56,7 @@ export const TypeKind = {
     isUnionType(type),
   isInputObject: (type: GraphQLNamedType): type is GraphQLInputObjectType =>
     isInputObjectType(type),
-  isEnum: (type: GraphQLNamedType): type is GraphQLEnumType =>
-    isEnumType(type),
+  isEnum: (type: GraphQLNamedType): type is GraphQLEnumType => isEnumType(type),
   isScalar: (type: GraphQLNamedType): type is GraphQLScalarType =>
     isScalarType(type),
 } as const;

@@ -134,9 +134,7 @@ function extractTagsFromDirectives(
         (arg: any) => arg.name.value === "tags"
       );
       if (tagsArg && tagsArg.value.kind === "ListValue") {
-        const tags = tagsArg.value.values.map(
-          (v: any) => v.value
-        ) as string[];
+        const tags = tagsArg.value.values.map((v: any) => v.value) as string[];
         allTags.push(...tags);
       }
     }

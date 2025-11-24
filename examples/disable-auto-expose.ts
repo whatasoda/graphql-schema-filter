@@ -96,14 +96,22 @@ async function main() {
   if (publicUserQueries && "getFields" in publicUserQueries) {
     const fields = Object.keys(publicUserQueries.getFields());
     console.log(`  public UserQueries fields: ${fields.join(", ")}`);
-    console.log(`    ✓ internalUserLookup excluded: ${!fields.includes("internalUserLookup")}`);
+    console.log(
+      `    ✓ internalUserLookup excluded: ${!fields.includes(
+        "internalUserLookup"
+      )}`
+    );
   }
 
   if (authUserQueries && "getFields" in authUserQueries) {
     const fields = Object.keys(authUserQueries.getFields());
     console.log(`  authenticated UserQueries fields: ${fields.join(", ")}`);
     console.log(`    ✓ me included: ${fields.includes("me")}`);
-    console.log(`    ✓ internalUserLookup excluded: ${!fields.includes("internalUserLookup")}`);
+    console.log(
+      `    ✓ internalUserLookup excluded: ${!fields.includes(
+        "internalUserLookup"
+      )}`
+    );
   }
 
   if (adminUserQueries && "getFields" in adminUserQueries) {

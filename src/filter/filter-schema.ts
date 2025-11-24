@@ -10,6 +10,7 @@ import {
   printSchema,
   parse,
   buildASTSchema,
+  Kind,
 } from "graphql";
 import type { EntryPoints, FilterSchemaOptions } from "../types";
 import {
@@ -91,7 +92,7 @@ export async function filterSchemaForRole(
 
   // Phase 6: フィルタリング済み AST から新しいスキーマを構築
   const filteredSchema = buildASTSchema({
-    kind: "Document",
+    kind: Kind.DOCUMENT,
     definitions: filteredDefinitions,
   });
 

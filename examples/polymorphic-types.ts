@@ -100,7 +100,9 @@ async function main() {
     (name) => !name.startsWith("__")
   );
 
-  console.log(`  public types: ${publicTypes.length} - ${publicTypes.join(", ")}`);
+  console.log(
+    `  public types: ${publicTypes.length} - ${publicTypes.join(", ")}`
+  );
   console.log(`  admin types: ${adminTypes.length} - ${adminTypes.join(", ")}`);
 
   // Interface が含まれているか確認
@@ -111,7 +113,9 @@ async function main() {
     `  ✓ Content interface in admin schema: ${adminTypes.includes("Content")}`
   );
   console.log(
-    `  ✓ SearchResult union in public schema: ${publicTypes.includes("SearchResult")}`
+    `  ✓ SearchResult union in public schema: ${publicTypes.includes(
+      "SearchResult"
+    )}`
   );
 
   // Article が Interface を実装しているか確認

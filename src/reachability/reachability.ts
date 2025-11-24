@@ -5,7 +5,15 @@
  * 推移的に参照されるすべての型を収集する
  */
 
-import { GraphQLNamedType, GraphQLSchema, NamedTypeNode } from "graphql";
+import {
+  GraphQLNamedType,
+  GraphQLSchema,
+  NamedTypeNode,
+  getNamedType,
+  isObjectType,
+  isInterfaceType,
+  isIntrospectionType,
+} from "graphql";
 import type { SchemaAnalysis } from "../types";
 import { traverseGraphQLType } from "./traverse";
 
@@ -119,6 +127,12 @@ export function traverseReachableTypes({
         return true;
       }
 
+      if (output.source === "interfaceImplementation") {
+        // Don't include interface implementations in first pass
+        // They will be added in the second pass only if the interface is reached via a field
+        return false;
+      }
+
       if (output.source === "inputField") {
         return true;
       }
@@ -147,14 +161,62 @@ export function computeReachability(
   target: string,
   analysis: SchemaAnalysis
 ): Set<string> {
+  const interfacesReachedViaFields = new Set<string>();
+
+  // First pass: Normal traversal (track interfaces reached via fields)
   const reachableTypes = new Set<string>(
-    traverseReachableTypes({ schema, target, analysis }).map((type) => {
+    Array.from(traverseReachableTypes({ schema, target, analysis })).map((type) => {
       if (DEBUG) {
         console.log(`[Reachability] Discovered type: ${type.name}`);
       }
       return type.name;
     })
   );
+
+  // Collect interfaces that are used as field types
+  const entrypoints = Object.values(analysis.rootTypeNames)
+    .map((typeName) => (typeName ? schema.getType(typeName) : null))
+    .filter((type) => type != null);
+
+  const visited = new Set<string>();
+  const queue = [...entrypoints];
+
+  while (queue.length > 0) {
+    const type = queue.shift()!;
+
+    if (isIntrospectionType(type) || visited.has(type.name) || !reachableTypes.has(type.name)) {
+      continue;
+    }
+    visited.add(type.name);
+
+    if (isObjectType(type) || isInterfaceType(type)) {
+      for (const field of Object.values(type.getFields())) {
+        const fieldType = getNamedType(field.type);
+
+        // Track if the field type is an interface
+        if (isInterfaceType(fieldType) && reachableTypes.has(fieldType.name)) {
+          interfacesReachedViaFields.add(fieldType.name);
+        }
+
+        if (reachableTypes.has(fieldType.name)) {
+          queue.push(fieldType);
+        }
+      }
+    }
+  }
+
+  // Second pass: Add implementations for interfaces reached via fields
+  for (const interfaceName of interfacesReachedViaFields) {
+    const interface_ = schema.getType(interfaceName);
+    if (isInterfaceType(interface_)) {
+      for (const implType of schema.getPossibleTypes(interface_)) {
+        if (DEBUG && !reachableTypes.has(implType.name)) {
+          console.log(`[Reachability] Adding interface implementation: ${implType.name} (for ${interfaceName})`);
+        }
+        reachableTypes.add(implType.name);
+      }
+    }
+  }
 
   if (DEBUG) {
     console.log(`[Reachability] Traversal complete. Total types discovered: `);

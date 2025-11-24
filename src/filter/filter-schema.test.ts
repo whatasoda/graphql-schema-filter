@@ -272,6 +272,46 @@ describe("filterSchemaForTarget (integration)", () => {
     expect(filteredSchemaStr).not.toContain("type Post");
   });
 
+  test("should include interface implementations when interface is used in internal fields", async () => {
+    const schema = buildSchema(`
+      directive @expose(tags: [String!]!) on FIELD_DEFINITION
+
+      type Query {
+        user: User @expose(tags: ["user"])
+      }
+
+      interface Node {
+        id: ID!
+      }
+
+      type User implements Node {
+        id: ID!
+        name: String!
+        friend: Node
+      }
+
+      type Post implements Node {
+        id: ID!
+        title: String!
+      }
+    `);
+
+    const filteredSchema = await filterSchema(schema, {
+      target: "user",
+    });
+
+    const filteredSchemaStr = printSchema(filteredSchema);
+
+    // Should include User (directly reachable from Query.user)
+    expect(filteredSchemaStr).toContain("type User implements Node");
+
+    // Should include Node interface (User implements it, and User.friend returns Node)
+    expect(filteredSchemaStr).toContain("interface Node");
+
+    // Should include Post (Node's implementation, because User.friend: Node)
+    expect(filteredSchemaStr).toContain("type Post implements Node");
+  });
+
   test("should handle Union types", async () => {
     const schema = buildSchema(`
       directive @expose(tags: [String!]!) on FIELD_DEFINITION

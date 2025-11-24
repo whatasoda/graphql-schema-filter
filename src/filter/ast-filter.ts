@@ -13,10 +13,55 @@ import type {
   InputValueDefinitionNode,
 } from "graphql";
 import type { SchemaAnalysis } from "../types";
-import {
-  isFieldExposedFromAST,
-  isInputFieldExposedFromAST,
-} from "../utils/ast-utils";
+
+/**
+ * AST FieldDefinitionNode から指定されたロールがフィールドにアクセス可能かを判定
+ *
+ * @param typeName - 親型の名前
+ * @param field - フィールド定義 AST ノード
+ * @param analysis - SchemaAnalysis 情報
+ * @param role - ロール名
+ * @returns フィールドが公開されている場合 true
+ *
+ * @remarks
+ * ルール:
+ * - フィールドに @expose がある場合、そのロールリストで判定
+ * - フィールドに @expose がない場合:
+ *   - Query/Mutation/Subscription 型: 非公開（除外）
+ *   - @disableAutoExpose が付いた型: 非公開（除外）
+ *   - その他の output type: 公開（デフォルト公開）
+ */
+export function isFieldExposedFromAST({
+  typeName,
+  field,
+  analysis,
+  role,
+}: {
+  typeName: string;
+  field: FieldDefinitionNode | InputValueDefinitionNode;
+  analysis: SchemaAnalysis;
+  role: string;
+}): boolean {
+  const exposureInfo = analysis.exposureInfoMap.get(typeName);
+  if (!exposureInfo) {
+    return false;
+  }
+
+  // フィールドレベルの @expose をチェック
+  const fieldInfo = exposureInfo.fields.get(field.name.value);
+  if (fieldInfo !== undefined) {
+    return fieldInfo.tags.includes(role);
+  }
+
+  // @expose がない場合の判定
+  // Root 型または @disableAutoExpose が付いている型は除外
+  if (exposureInfo.isRootType || exposureInfo.isAutoExposeDisabled) {
+    return false;
+  }
+
+  // その他の output type はデフォルト公開
+  return true;
+}
 
 /**
  * ObjectTypeDefinition のフィールドをフィルタリング
@@ -37,7 +82,12 @@ function filterObjectFields(
 
   // exposed-only: @expose ルールに基づいてフィルタリング
   return typeDef.fields.filter((field) =>
-    isFieldExposedFromAST(typeDef.name.value, field, analysis, role)
+    isFieldExposedFromAST({
+      typeName: typeDef.name.value,
+      field,
+      analysis,
+      role,
+    })
   );
 }
 
@@ -60,7 +110,12 @@ function filterInterfaceFields(
 
   // exposed-only: @expose ルールに基づいてフィルタリング
   return typeDef.fields.filter((field) =>
-    isFieldExposedFromAST(typeDef.name.value, field, analysis, role)
+    isFieldExposedFromAST({
+      typeName: typeDef.name.value,
+      field,
+      analysis,
+      role,
+    })
   );
 }
 
@@ -85,7 +140,12 @@ function filterInputObjectFields(
   }
 
   return typeDef.fields.filter((field) =>
-    isInputFieldExposedFromAST(typeDef.name.value, field, analysis, role)
+    isFieldExposedFromAST({
+      typeName: typeDef.name.value,
+      field,
+      analysis,
+      role,
+    })
   );
 }
 

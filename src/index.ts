@@ -25,15 +25,6 @@ export {
 // AST Filter関連の純粋関数
 export { filterDefinitionsAST } from "./filter/ast-filter";
 
-// AST ユーティリティ
-export {
-  isFieldExposedFromAST,
-  isInputFieldExposedFromAST,
-} from "./utils/ast-utils";
-
-// ユーティリティ
-export { isBuiltInScalar } from "./utils/type-utils";
-
 // 型定義
 export type {
   SchemaAnalysis,

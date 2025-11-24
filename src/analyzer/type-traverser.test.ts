@@ -38,20 +38,20 @@ describe("createTypeTraverserInternal", () => {
       const idOutput = outputs.find((o) => o.fieldName === "id");
       expect(idOutput).toBeDefined();
       expect(idOutput?.source).toBe("outputField");
-      expect(idOutput?.field.name).toBe("ID");
-      expect(idOutput?.parent.name).toBe("User");
+      expect(idOutput?.fieldType.name).toBe("ID");
+      expect(idOutput?.typeName).toBe("User");
       expect(idOutput?.children.length).toBe(1); // Return type only
 
       // Check posts field with argument
       const postsOutput = outputs.find((o) => o.fieldName === "posts");
       expect(postsOutput).toBeDefined();
       expect(postsOutput?.source).toBe("outputField");
-      expect(postsOutput?.field.name).toBe("Post");
+      expect(postsOutput?.fieldType.name).toBe("Post");
       expect(postsOutput?.children.length).toBe(2); // Return type + argument type
       expect(postsOutput?.children.map((c) => c.name)).toContain("Int");
     });
 
-    test("should yield implements for interfaces", () => {
+    test("should yield implemented interfaces", () => {
       const schema = buildSchema(`
         type Query {
           node: Node
@@ -73,17 +73,18 @@ describe("createTypeTraverserInternal", () => {
 
       const outputs = [...traverser.traverseObject(userType as any)];
 
-      // Should have output fields + implements
+      // Should have output fields + implemented interface
       const implementsOutputs = outputs.filter(
-        (o) => o.source === "implements"
+        (o) => o.source === "implementedInterface"
       );
       expect(implementsOutputs.length).toBe(1);
-      expect(implementsOutputs[0].type.name).toBe("Node");
+      expect(implementsOutputs[0].interfaceType.name).toBe("Node");
+      expect(implementsOutputs[0].typeName).toBe("User");
     });
   });
 
   describe("traverseInterface", () => {
-    test("should yield output fields", () => {
+    test("should yield interface fields", () => {
       const schema = buildSchema(`
         type Query {
           node: Node
@@ -111,14 +112,15 @@ describe("createTypeTraverserInternal", () => {
 
       const outputs = [...traverser.traverseInterface(nodeType as any)];
 
-      // Should yield 2 output fields + 2 interface implementations
-      const fieldOutputs = outputs.filter((o) => o.source === "outputField");
+      // Should yield 2 interface fields + 2 interface implementations
+      const fieldOutputs = outputs.filter((o) => o.source === "interfaceField");
       expect(fieldOutputs.length).toBe(2);
 
       // Check field output
       const idOutput = fieldOutputs.find((o) => o.fieldName === "id");
       expect(idOutput).toBeDefined();
       expect(idOutput?.fieldType.name).toBe("ID");
+      expect(idOutput?.typeName).toBe("Node");
     });
 
     test("should yield interface implementations", () => {
@@ -160,7 +162,7 @@ describe("createTypeTraverserInternal", () => {
       expect(implNames).toEqual(["Post", "User"]);
 
       // Check structure
-      expect(implOutputs[0].interface.name).toBe("Node");
+      expect(implOutputs[0].interfaceName).toBe("Node");
       expect(implOutputs[0].children.length).toBe(1);
     });
   });
@@ -195,12 +197,13 @@ describe("createTypeTraverserInternal", () => {
       expect(outputs.length).toBe(2);
       expect(outputs.every((o) => o.source === "unionMember")).toBe(true);
 
-      const memberNames = outputs.map((o) => o.field.name).sort();
+      const memberNames = outputs.map((o) => o.memberType.name).sort();
       expect(memberNames).toEqual(["Post", "User"]);
 
-      // Check children
+      // Check structure
+      expect(outputs[0].unionName).toBe("SearchResult");
       expect(outputs[0].children.length).toBe(1);
-      expect(outputs[0].children[0].name).toBe(outputs[0].field.name);
+      expect(outputs[0].children[0].name).toBe(outputs[0].memberType.name);
     });
   });
 
@@ -237,10 +240,10 @@ describe("createTypeTraverserInternal", () => {
       expect(fieldNames).toEqual(["age", "email", "name"]);
 
       // Check parent
-      expect(outputs[0].parent.name).toBe("CreateUserInput");
+      expect(outputs[0].typeName).toBe("CreateUserInput");
 
       // Check types
-      const typeNames = outputs.map((o) => o.field.name).sort();
+      const typeNames = outputs.map((o) => o.fieldType.name).sort();
       expect(typeNames).toEqual(["Int", "String", "String"]);
     });
 
@@ -276,7 +279,7 @@ describe("createTypeTraverserInternal", () => {
       // Check nested input object
       const profileOutput = outputs.find((o) => o.fieldName === "profile");
       expect(profileOutput).toBeDefined();
-      expect(profileOutput?.field.name).toBe("ProfileInput");
+      expect(profileOutput?.fieldType.name).toBe("ProfileInput");
     });
   });
 
@@ -346,7 +349,7 @@ describe("createTypeTraverserInternal", () => {
       expect(userOutputs.length).toBeGreaterThan(0);
       expect(
         userOutputs.every(
-          (o) => o.source === "outputField" || o.source === "implements"
+          (o) => o.source === "outputField" || o.source === "implementedInterface"
         )
       ).toBe(true);
 
@@ -424,10 +427,7 @@ describe("traverseGraphQLType", () => {
         schema,
         entrypoints: [userType as any],
         filter: (output) => {
-          if (
-            output.source === "outputField" &&
-            output.fieldName === "secret"
-          ) {
+          if (output.source === "outputField" && output.fieldName === "secret") {
             return false;
           }
           return true;
@@ -548,7 +548,11 @@ describe("traverseGraphQLType", () => {
     `);
 
     const types = [
-      ...traverseGraphQLType({ schema, entrypoints: [], filter: () => true }),
+      ...traverseGraphQLType({
+        schema,
+        entrypoints: [],
+        filter: () => true,
+      }),
     ];
 
     // Should yield no types

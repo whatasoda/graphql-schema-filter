@@ -6,9 +6,11 @@ import { parseExposeDirectives } from "../parser/expose-parser";
 describe("computeReachability", () => {
   test("should compute reachable types from Query fields", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        user: User
-        post: Post
+        user: User @expose(tags: ["test"])
+        post: Post @expose(tags: ["test"])
       }
 
       type User {
@@ -49,8 +51,10 @@ describe("computeReachability", () => {
 
   test("should follow argument types", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        createUser(input: CreateUserInput!): User
+        createUser(input: CreateUserInput!): User @expose(tags: ["test"])
       }
 
       type User {
@@ -78,12 +82,14 @@ describe("computeReachability", () => {
 
   test("should handle Mutation fields", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
         hello: String
       }
 
       type Mutation {
-        createPost(input: CreatePostInput!): Post
+        createPost(input: CreatePostInput!): Post @expose(tags: ["test"])
       }
 
       type Post {
@@ -107,19 +113,22 @@ describe("computeReachability", () => {
     expect(reachableTypes.has("Post")).toBe(true);
     expect(reachableTypes.has("CreatePostInput")).toBe(true);
 
-    // Should not include Query
-    expect(reachableTypes.has("Query")).toBe(false);
+    // Query and Mutation are included as root types (entry points)
+    expect(reachableTypes.has("Query")).toBe(true);
+    expect(reachableTypes.has("Mutation")).toBe(true);
   });
 
-  test("should handle explicitly added types", () => {
+  test("should not include types without exposed root fields", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        hello: String
+        hello: String @expose(tags: ["admin"])
       }
 
       type User {
         id: ID!
-        name: String!
+        posts: [Post!]!
       }
 
       type Post {
@@ -135,17 +144,18 @@ describe("computeReachability", () => {
       parsedDirectives
     );
 
-    // Should include User
-    expect(reachableTypes.has("User")).toBe(true);
-
-    // Should not include Post (not reachable from User)
+    // Should not include User or Post (no exposed fields for "test" role)
+    expect(reachableTypes.has("User")).toBe(false);
     expect(reachableTypes.has("Post")).toBe(false);
+    expect(reachableTypes.has("String")).toBe(false);
   });
 
   test("should handle circular references", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        user: User
+        user: User @expose(tags: ["test"])
       }
 
       type User {
@@ -174,8 +184,10 @@ describe("computeReachability", () => {
 
   test("should follow interface implementations when includeInterfaceImplementations is true", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        node(id: ID!): Node
+        node(id: ID!): Node @expose(tags: ["test"])
       }
 
       interface Node {
@@ -211,8 +223,10 @@ describe("computeReachability", () => {
 
   test("should not follow interface implementations when includeInterfaceImplementations is false", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        node(id: ID!): Node
+        node(id: ID!): Node @expose(tags: ["test"])
       }
 
       interface Node {
@@ -248,8 +262,10 @@ describe("computeReachability", () => {
 
   test("should handle Union types", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        search: SearchResult
+        search: SearchResult @expose(tags: ["test"])
       }
 
       union SearchResult = User | Post
@@ -280,8 +296,10 @@ describe("computeReachability", () => {
 
   test("should handle nested InputObject types", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        createUser(input: CreateUserInput!): User
+        createUser(input: CreateUserInput!): User @expose(tags: ["test"])
       }
 
       type User {
@@ -293,7 +311,6 @@ describe("computeReachability", () => {
       }
 
       input ProfileInput {
-        name: String!
         settings: SettingsInput
       }
 
@@ -315,10 +332,12 @@ describe("computeReachability", () => {
     expect(reachableTypes.has("SettingsInput")).toBe(true);
   });
 
-  test("should handle empty entry points", () => {
+  test("should return only root types when no fields are exposed", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        hello: String
+        hello: String @expose(tags: ["admin"])
       }
     `);
 
@@ -329,34 +348,20 @@ describe("computeReachability", () => {
       parsedDirectives
     );
 
-    // Should return empty set (no reachable types)
-    expect(reachableTypes.size).toBe(0);
-  });
-
-  test("should warn for non-existent query fields", () => {
-    const schema = buildSchema(`
-      type Query {
-        hello: String
-      }
-    `);
-
-    const parsedDirectives = parseExposeDirectives(schema);
-    // Should not throw, just warn
-    const reachableTypes = computeReachability(
-      schema,
-      "test",
-      parsedDirectives
-    );
-
-    expect(reachableTypes.size).toBe(0);
+    // Should only include Query (entry point) but no other types
+    expect(reachableTypes.has("Query")).toBe(true);
+    expect(reachableTypes.has("String")).toBe(false);
+    expect(reachableTypes.size).toBe(1);
   });
 });
 
 describe("traverseReachableTypes (generator)", () => {
   test("should yield types lazily (early termination)", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        user: User
+        user: User @expose(tags: ["test"])
       }
 
       type User {
@@ -382,25 +387,27 @@ describe("traverseReachableTypes (generator)", () => {
       },
     });
 
-    // Take only the first 2 types
-    const firstTwo = [];
+    // Take only the first 3 types
+    const firstThree = [];
     for (const typeName of generator) {
-      firstTwo.push(typeName);
-      if (firstTwo.length === 2) {
+      firstThree.push(typeName);
+      if (firstThree.length === 3) {
         break; // Early termination
       }
     }
 
     // Should have stopped early
-    expect(firstTwo.length).toBe(2);
-    expect(firstTwo.includes("User")).toBe(true);
+    expect(firstThree.length).toBe(3);
+    expect(firstThree).toContain("Query");
   });
 
   test("should produce the same result as computeReachability", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        user: User
-        post: Post
+        user: User @expose(tags: ["test"])
+        post: Post @expose(tags: ["test"])
       }
 
       type User {
@@ -438,8 +445,10 @@ describe("traverseReachableTypes (generator)", () => {
 
   test("should support iterator protocol (spread operator)", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        hello: String
+        hello: String @expose(tags: ["test"])
       }
     `);
 
@@ -459,13 +468,16 @@ describe("traverseReachableTypes (generator)", () => {
 
     // Should work with iterator protocol
     expect(typeNames.length).toBeGreaterThan(0);
+    expect(typeNames.includes("Query")).toBe(true);
     expect(typeNames.includes("String")).toBe(true);
   });
 
-  test("should handle empty entry points (empty iteration)", () => {
+  test("should return only root types when no fields are exposed", () => {
     const schema = buildSchema(`
+      directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION
+
       type Query {
-        hello: String
+        hello: String @expose(tags: ["admin"])
       }
     `);
 
@@ -482,7 +494,7 @@ describe("traverseReachableTypes (generator)", () => {
       }),
     ];
 
-    // Should yield no types
-    expect(typeNames.length).toBe(0);
+    // Should only yield Query (no exposed fields for "test" role)
+    expect(typeNames).toEqual(["Query"]);
   });
 });

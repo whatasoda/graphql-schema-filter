@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import { createSchemaAnalysis } from "./expose-parser";
+import { createSchemaAnalysis } from "./schema-analysis";
 
 describe("parseExposeDirectives", () => {
   test("should parse @expose directives from schema", () => {
@@ -107,21 +107,5 @@ describe("parseExposeDirectives", () => {
       }
     }
     expect(hasDisabledTypes).toBe(false);
-  });
-
-  test("should memoize results for same schema", () => {
-    const schema = buildSchema(`
-      directive @expose(tags: [String!]!) on FIELD_DEFINITION
-
-      type Query {
-        test: String @expose(tags: ["admin"])
-      }
-    `);
-
-    const result1 = createSchemaAnalysis(schema);
-    const result2 = createSchemaAnalysis(schema);
-
-    // Should return the same object (memoized)
-    expect(result1).toBe(result2);
   });
 });

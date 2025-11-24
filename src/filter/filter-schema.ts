@@ -15,7 +15,7 @@ import type { FilterSchemaOptions } from "../types";
 import {
   createSchemaAnalysis,
   debugSchemaAnalysis,
-} from "../analysis/expose-parser";
+} from "../analysis/schema-analysis";
 import { computeReachability } from "../reachability/reachability";
 import { filterDefinitionsAST } from "./ast-filter";
 

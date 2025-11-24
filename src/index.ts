@@ -14,7 +14,7 @@ export { filterSchema as filterSchemaForTarget } from "./filter/filter-schema";
 export {
   createSchemaAnalysis,
   debugSchemaAnalysis,
-} from "./analysis/expose-parser";
+} from "./analysis/schema-analysis";
 
 // Reachability関連の純粋関数
 export {

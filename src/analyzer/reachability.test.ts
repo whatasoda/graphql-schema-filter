@@ -1,7 +1,184 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import { computeReachability, traverseReachableTypes } from "./reachability";
-import { parseExposeDirectives } from "../parser/expose-parser";
+import {
+  computeReachability,
+  isFieldExposed,
+  traverseReachableTypes,
+} from "./reachability";
+import { createSchemaAnalysis } from "../parser/expose-parser";
+
+describe("isFieldExposed", () => {
+  test("should return true for fields with matching role tag", () => {
+    const schema = buildSchema(`
+      directive @expose(tags: [String!]!) on FIELD_DEFINITION
+
+      type Query {
+        adminField: String @expose(tags: ["admin"])
+      }
+    `);
+
+    const analysis = createSchemaAnalysis(schema);
+
+    expect(
+      isFieldExposed({
+        analysis,
+        typeName: "Query",
+        fieldName: "adminField",
+        role: "admin",
+      })
+    ).toBe(true);
+  });
+
+  test("should return false for fields without matching role tag", () => {
+    const schema = buildSchema(`
+      directive @expose(tags: [String!]!) on FIELD_DEFINITION
+
+      type Query {
+        adminField: String @expose(tags: ["admin"])
+      }
+    `);
+
+    const analysis = createSchemaAnalysis(schema);
+
+    expect(
+      isFieldExposed({
+        analysis,
+        typeName: "Query",
+        fieldName: "adminField",
+        role: "user",
+      })
+    ).toBe(false);
+  });
+
+  test("should return false for Query fields without @expose", () => {
+    const schema = buildSchema(`
+      directive @expose(tags: [String!]!) on FIELD_DEFINITION
+
+      type Query {
+        publicField: String
+      }
+    `);
+
+    const analysis = createSchemaAnalysis(schema);
+
+    // Query fields without @expose should be excluded
+    expect(
+      isFieldExposed({
+        analysis,
+        typeName: "Query",
+        fieldName: "publicField",
+        role: "user",
+      })
+    ).toBe(false);
+  });
+
+  test("should return true for non-root type fields without @expose (auto-expose)", () => {
+    const schema = buildSchema(`
+      directive @expose(tags: [String!]!) on FIELD_DEFINITION
+
+      type Query {
+        user: User @expose(tags: ["user"])
+      }
+
+      type User {
+        id: ID!
+        name: String!
+      }
+    `);
+
+    const analysis = createSchemaAnalysis(schema);
+
+    // User fields without @expose should be auto-exposed
+    expect(
+      isFieldExposed({
+        analysis,
+        typeName: "User",
+        fieldName: "id",
+        role: "user",
+      })
+    ).toBe(true);
+    expect(
+      isFieldExposed({
+        analysis,
+        typeName: "User",
+        fieldName: "name",
+        role: "user",
+      })
+    ).toBe(true);
+  });
+
+  test("should respect @disableAutoExpose directive", () => {
+    const schema = buildSchema(`
+      directive @expose(tags: [String!]!) on FIELD_DEFINITION
+      directive @disableAutoExpose on OBJECT | INTERFACE
+
+      type Query {
+        secure: SecureType @expose(tags: ["admin"])
+      }
+
+      type SecureType @disableAutoExpose {
+        id: ID!
+        secret: String @expose(tags: ["admin"])
+      }
+    `);
+
+    const analysis = createSchemaAnalysis(schema);
+
+    // SecureType.id should not be auto-exposed
+    expect(
+      isFieldExposed({
+        analysis,
+        typeName: "SecureType",
+        fieldName: "id",
+        role: "admin",
+      })
+    ).toBe(false);
+
+    // SecureType.secret should be exposed to admin
+    expect(
+      isFieldExposed({
+        analysis,
+        typeName: "SecureType",
+        fieldName: "secret",
+        role: "admin",
+      })
+    ).toBe(true);
+  });
+
+  test("should handle empty tags array (explicitly excluded)", () => {
+    const schema = buildSchema(`
+      directive @expose(tags: [String!]!) on FIELD_DEFINITION
+
+      type Query {
+        test: String @expose(tags: ["admin"])
+      }
+
+      type User {
+        password: String @expose(tags: [])
+      }
+    `);
+
+    const analysis = createSchemaAnalysis(schema);
+
+    // Field with empty tags should not be exposed to any role
+    expect(
+      isFieldExposed({
+        analysis,
+        typeName: "User",
+        fieldName: "password",
+        role: "admin",
+      })
+    ).toBe(false);
+    expect(
+      isFieldExposed({
+        analysis,
+        typeName: "User",
+        fieldName: "password",
+        role: "user",
+      })
+    ).toBe(false);
+  });
+});
 
 describe("computeReachability", () => {
   test("should compute reachable types from Query fields", () => {
@@ -30,7 +207,7 @@ describe("computeReachability", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
     const reachableTypes = computeReachability(
       schema,
       "test",
@@ -68,7 +245,7 @@ describe("computeReachability", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
     const reachableTypes = computeReachability(
       schema,
       "test",
@@ -102,7 +279,7 @@ describe("computeReachability", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
     const reachableTypes = computeReachability(
       schema,
       "test",
@@ -137,7 +314,7 @@ describe("computeReachability", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
     const reachableTypes = computeReachability(
       schema,
       "test",
@@ -170,7 +347,7 @@ describe("computeReachability", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
     const reachableTypes = computeReachability(
       schema,
       "test",
@@ -181,7 +358,6 @@ describe("computeReachability", () => {
     expect(reachableTypes.has("User")).toBe(true);
     expect(reachableTypes.has("Post")).toBe(true);
   });
-
 
   test("should handle Union types", () => {
     const schema = buildSchema(`
@@ -204,7 +380,7 @@ describe("computeReachability", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
     const reachableTypes = computeReachability(
       schema,
       "test",
@@ -242,7 +418,7 @@ describe("computeReachability", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
     const reachableTypes = computeReachability(
       schema,
       "test",
@@ -264,7 +440,7 @@ describe("computeReachability", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
     const reachableTypes = computeReachability(
       schema,
       "test",
@@ -300,7 +476,7 @@ describe("traverseReachableTypes (generator)", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
     const generator = traverseReachableTypes({
       schema,
       role: "test",
@@ -343,7 +519,7 @@ describe("traverseReachableTypes (generator)", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
 
     // Using computeReachability
     const reachableSet = computeReachability(schema, "test", parsedDirectives);
@@ -371,7 +547,7 @@ describe("traverseReachableTypes (generator)", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
 
     // Using spread operator with generator
     const typeNames = [
@@ -397,7 +573,7 @@ describe("traverseReachableTypes (generator)", () => {
       }
     `);
 
-    const parsedDirectives = parseExposeDirectives(schema);
+    const parsedDirectives = createSchemaAnalysis(schema);
 
     const typeNames = [
       ...traverseReachableTypes({

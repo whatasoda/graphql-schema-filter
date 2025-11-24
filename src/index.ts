@@ -12,10 +12,8 @@ export { filterSchemaForRole } from "./filter/filter-schema";
 
 // Parser関連の純粋関数
 export {
-  parseExposeDirectives,
-  isFieldExposed,
-  getExposedFields,
-  debugExposeDirectives,
+  createSchemaAnalysis,
+  debugSchemaAnalysis,
 } from "./parser/expose-parser";
 
 // Reachability関連の純粋関数
@@ -29,7 +27,6 @@ export { filterDefinitionsAST } from "./filter/ast-filter";
 
 // AST ユーティリティ
 export {
-  getTypeNameFromTypeNode,
   isFieldExposedFromAST,
   isInputFieldExposedFromAST,
 } from "./utils/ast-utils";
@@ -42,6 +39,5 @@ export type {
   SchemaAnalysis,
   TypeLevelExposureInfo,
   FieldLevelExposureInfo,
-  SchemaFilterConfig,
   FilterSchemaOptions,
 } from "./types";

@@ -35,18 +35,6 @@ export interface SchemaAnalysis {
 }
 
 /**
- * スキーマフィルタの設定
- */
-export interface SchemaFilterConfig {
-  /**
-   * フィールド保持方針
-   * - 'exposed-only': @expose で公開されたフィールドのみ保持（既定）
-   * - 'all-for-included-type': 型を含めると決めたら全フィールドも含める
-   */
-  fieldRetention: "exposed-only" | "all-for-included-type";
-}
-
-/**
  * スキーマフィルタリングのオプション
  */
 export interface FilterSchemaOptions {
@@ -54,9 +42,4 @@ export interface FilterSchemaOptions {
    * 対象ロール
    */
   role: string;
-
-  /**
-   * フィールド保持方針の設定
-   */
-  filterConfig?: Partial<SchemaFilterConfig>;
 }

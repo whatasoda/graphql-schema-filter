@@ -4,19 +4,25 @@
 
 import {
   GraphQLSchema,
-  GraphQLObjectType,
-  GraphQLInterfaceType,
-  GraphQLInputObjectType,
   isObjectType,
   isInterfaceType,
   isInputObjectType,
   isIntrospectionType,
+  GraphQLObjectType,
+  GraphQLInputField,
+  GraphQLField,
+  GraphQLInterfaceType,
+  GraphQLInputObjectType,
 } from "graphql";
 import type {
   SchemaAnalysis,
   TypeLevelExposureInfo,
   FieldLevelExposureInfo,
 } from "../types";
+import {
+  extractExposureTags,
+  hasDisableAutoExposeDirective,
+} from "../analysis/directive";
 
 /**
  * @expose ディレクティブの情報
@@ -26,26 +32,12 @@ export interface ExposeDirective {
 }
 
 /**
- * パース結果のメモ化用キャッシュ
- */
-const analysisCache = new WeakMap<GraphQLSchema, SchemaAnalysis>();
-
-/**
- * スキーマから @expose ディレクティブを抽出
+ * スキーマから @expose ディレクティブを解析
  *
  * @param schema - GraphQLスキーマ
- * @returns パース済みの @expose ディレクティブ情報
- *
- * @remarks
- * 同一スキーマに対する呼び出しはキャッシュされ、再計算されません。
+ * @returns 解析済みの @expose ディレクティブ情報
  */
-export function parseExposeDirectives(schema: GraphQLSchema): SchemaAnalysis {
-  // キャッシュチェック
-  const cached = analysisCache.get(schema);
-  if (cached) {
-    return cached;
-  }
-
+export function createSchemaAnalysis(schema: GraphQLSchema): SchemaAnalysis {
   // Root 型の名前を取得
   const rootTypeNames = {
     query: schema.getQueryType()?.name ?? null,
@@ -59,185 +51,106 @@ export function parseExposeDirectives(schema: GraphQLSchema): SchemaAnalysis {
       rootTypeNames.query,
       rootTypeNames.mutation,
       rootTypeNames.subscription,
-    ].filter((name): name is string => name !== null)
+    ].filter((name) => name !== null)
   );
 
-  // exposureInfoMap を構築
-  const exposureInfoMap = new Map<string, TypeLevelExposureInfo>();
+  const exposureInfoList = Object.values(
+    schema.getTypeMap()
+  ).flatMap<TypeLevelExposureInfo>((type) => {
+    if (isIntrospectionType(type)) return [];
 
-  for (const [typeName, type] of Object.entries(schema.getTypeMap())) {
-    // Introspection 型や組み込み型はスキップ
-    if (isIntrospectionType(type)) continue;
-
-    // 型レベルの情報を初期化
-    const isRoot = rootTypeNameSet.has(typeName);
-    let isAutoExposeDisabled = false;
-    const fieldsMap = new Map<string, FieldLevelExposureInfo>();
-
-    // Object/Interface 型の処理
-    if (isObjectType(type) || isInterfaceType(type)) {
-      // 型レベルの @disableAutoExpose をチェック
-      isAutoExposeDisabled =
-        type.astNode?.directives?.some(
-          (d) => d.name.value === "disableAutoExpose"
-        ) ?? false;
-
-      // フィールドレベルの @expose を取得
-      const fields = type.getFields();
-      for (const [fieldName, field] of Object.entries(fields)) {
-        const fieldTags = extractTagsFromDirectives(
-          field.astNode?.directives ?? []
-        );
-        if (fieldTags !== undefined) {
-          fieldsMap.set(fieldName, {
-            fieldName,
-            tags: fieldTags,
-          });
-        }
-      }
-    }
-    // InputObject 型の処理
-    else if (isInputObjectType(type)) {
-      // InputObject のフィールドレベルの @expose を取得
-      const fields = type.getFields();
-      for (const [fieldName, field] of Object.entries(fields)) {
-        const fieldTags = extractTagsFromDirectives(
-          field.astNode?.directives ?? []
-        );
-        if (fieldTags !== undefined) {
-          fieldsMap.set(fieldName, {
-            fieldName,
-            tags: fieldTags,
-          });
-        }
-      }
+    if (isObjectType(type)) {
+      return createExposureInfoFromObjectType({ type, rootTypeNameSet }) ?? [];
     }
 
-    // TypeLevelExposureInfo を作成
-    exposureInfoMap.set(typeName, {
-      typeName,
-      isRootType: isRoot,
-      isAutoExposeDisabled,
-      fields: fieldsMap,
-    });
-  }
-
-  // SchemaAnalysis を構築してキャッシュ
-  const result: SchemaAnalysis = {
-    rootTypeNames,
-    exposureInfoMap,
-  };
-
-  analysisCache.set(schema, result);
-  return result;
-}
-
-/**
- * AST ノードから @expose ディレクティブのロールを抽出
- * @returns ディレクティブが存在する場合は tags 配列、存在しない場合は undefined
- */
-function extractTagsFromDirectives(
-  directives: readonly any[]
-): string[] | undefined {
-  let hasExposeDirective = false;
-  const allTags: string[] = [];
-
-  for (const directive of directives) {
-    if (directive.name.value === "expose") {
-      hasExposeDirective = true;
-      const tagsArg = directive.arguments?.find(
-        (arg: any) => arg.name.value === "tags"
-      );
-      if (tagsArg && tagsArg.value.kind === "ListValue") {
-        const tags = tagsArg.value.values.map((v: any) => v.value) as string[];
-        allTags.push(...tags);
-      }
+    if (isInterfaceType(type)) {
+      return createExposureInfoFromInterfaceType({ type }) ?? [];
     }
-  }
 
-  // ディレクティブが存在しない場合は undefined を返す
-  if (!hasExposeDirective) {
-    return undefined;
-  }
+    if (isInputObjectType(type)) {
+      return createExposureInfoFromInputObjectType({ type }) ?? [];
+    }
 
-  return Array.from(new Set(allTags)); // 重複を除去
-}
-
-/**
- * 指定されたロールがフィールドにアクセス可能かを判定
- *
- * ルール:
- * - フィールドに @expose がある場合、そのロールリストで判定
- * - フィールドに @expose がない場合:
- *   - Query/Mutation/Subscription 型: 非公開（除外）
- *   - @disableAutoExpose が付いた型: 非公開（除外）
- *   - その他の output type: 公開（デフォルト公開）
- *
- * @param schema - GraphQLスキーマ
- * @param parsed - パース済みの @expose ディレクティブ情報
- * @param typeName - 型名
- * @param fieldName - フィールド名
- * @param role - ロール名
- * @returns フィールドが公開されている場合は true
- */
-export function isFieldExposed(
-  schema: GraphQLSchema,
-  analysis: SchemaAnalysis,
-  typeName: string,
-  fieldName: string,
-  role: string
-): boolean {
-  const exposureInfo = analysis.exposureInfoMap.get(typeName);
-  if (!exposureInfo) {
-    return false;
-  }
-
-  // フィールドレベルの @expose をチェック
-  const field = exposureInfo.fields.get(fieldName);
-  if (field !== undefined) {
-    return field.tags.includes(role);
-  }
-
-  // @expose がない場合の判定
-  // Root 型または @disableAutoExpose が付いている型は除外
-  if (exposureInfo.isRootType || exposureInfo.isAutoExposeDisabled) {
-    return false;
-  }
-
-  // その他の output type はデフォルト公開
-  return true;
-}
-
-/**
- * 指定されたロールで公開されるフィールド名のリストを取得
- *
- * @param schema - GraphQLスキーマ
- * @param parsed - パース済みの @expose ディレクティブ情報
- * @param typeName - 型名
- * @param role - ロール名
- * @returns 公開されているフィールド名の配列
- */
-export function getExposedFields(
-  schema: GraphQLSchema,
-  analysis: SchemaAnalysis,
-  typeName: string,
-  role: string
-): string[] {
-  const type = schema.getType(typeName);
-  if (!type || !(isObjectType(type) || isInterfaceType(type))) {
     return [];
-  }
+  });
 
-  const fields = type.getFields();
-  const exposedFields: string[] = [];
+  return {
+    rootTypeNames,
+    exposureInfoMap: new Map(
+      exposureInfoList.map((info) => [info.typeName, info])
+    ),
+  };
+}
 
-  for (const [fieldName] of Object.entries(fields)) {
-    if (isFieldExposed(schema, analysis, typeName, fieldName, role)) {
-      exposedFields.push(fieldName);
-    }
-  }
+function createExposureInfoFromObjectType({
+  type,
+  rootTypeNameSet,
+}: {
+  type: GraphQLObjectType;
+  rootTypeNameSet: Set<string>;
+}): TypeLevelExposureInfo | null {
+  return {
+    typeName: type.name,
+    isRootType: rootTypeNameSet.has(type.name),
+    isAutoExposeDisabled: hasDisableAutoExposeDirective({
+      directives: type.astNode?.directives,
+    }),
+    fields: createFieldLevelExposureInfoMapFromFieldLike({
+      fields: Object.values(type.getFields()),
+    }),
+  };
+}
 
-  return exposedFields;
+function createExposureInfoFromInterfaceType({
+  type,
+}: {
+  type: GraphQLInterfaceType;
+}): TypeLevelExposureInfo | null {
+  return {
+    typeName: type.name,
+    // NOTE: Interface types are never root types
+    isRootType: false,
+    // NOTE: Interface types are never auto-exposed
+    isAutoExposeDisabled: false,
+    fields: createFieldLevelExposureInfoMapFromFieldLike({
+      fields: Object.values(type.getFields()),
+    }),
+  };
+}
+
+function createExposureInfoFromInputObjectType({
+  type,
+}: {
+  type: GraphQLInputObjectType;
+}): TypeLevelExposureInfo | null {
+  return {
+    typeName: type.name,
+    // NOTE: InputObject types are never root types
+    isRootType: false,
+    // NOTE: InputObject types are never auto-exposed
+    isAutoExposeDisabled: false,
+    fields: createFieldLevelExposureInfoMapFromFieldLike({
+      fields: Object.values(type.getFields()),
+    }),
+  };
+}
+
+function createFieldLevelExposureInfoMapFromFieldLike({
+  fields,
+}: {
+  fields: GraphQLInputField[] | GraphQLField<unknown, unknown>[];
+}): Map<string, FieldLevelExposureInfo> {
+  return new Map(
+    fields
+      .flatMap<FieldLevelExposureInfo>((field) => {
+        const fieldTags = extractExposureTags({
+          directives: field.astNode?.directives,
+        });
+
+        return fieldTags ? [{ fieldName: field.name, tags: fieldTags }] : [];
+      })
+      .map((fieldInfo) => [fieldInfo.fieldName, fieldInfo])
+  );
 }
 
 /**
@@ -245,7 +158,7 @@ export function getExposedFields(
  *
  * @param analysis - SchemaAnalysis 情報
  */
-export function debugExposeDirectives(analysis: SchemaAnalysis): void {
+export function debugSchemaAnalysis(analysis: SchemaAnalysis): void {
   console.log("=== Root Types ===");
   console.log(`  Query: ${analysis.rootTypeNames.query ?? "(none)"}`);
   console.log(`  Mutation: ${analysis.rootTypeNames.mutation ?? "(none)"}`);

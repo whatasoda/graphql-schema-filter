@@ -13,8 +13,8 @@ import {
 } from "graphql";
 import type { FilterSchemaOptions } from "../types";
 import {
-  parseExposeDirectives,
-  debugExposeDirectives,
+  createSchemaAnalysis,
+  debugSchemaAnalysis,
 } from "../parser/expose-parser";
 import { computeReachability } from "../analyzer/reachability";
 import { filterDefinitionsAST } from "./ast-filter";
@@ -39,18 +39,18 @@ export async function filterSchemaForRole(
   schema: GraphQLSchema,
   options: FilterSchemaOptions
 ): Promise<GraphQLSchema> {
-  const { role, filterConfig } = options;
+  const { role } = options;
 
   // Phase 1: @expose ディレクティブをパース
-  const parsedDirectives = parseExposeDirectives(schema);
+  const analysis = createSchemaAnalysis(schema);
 
   // DEBUG: パース結果を出力
   if (process.env.DEBUG_EXPOSE_PARSER) {
-    debugExposeDirectives(parsedDirectives);
+    debugSchemaAnalysis(analysis);
   }
 
   // Phase 3: 到達可能な型を計算
-  const reachableTypes = computeReachability(schema, role, parsedDirectives);
+  const reachableTypes = computeReachability(schema, role, analysis);
 
   console.log(`Reachable types: ${reachableTypes.size}`);
 
@@ -63,8 +63,7 @@ export async function filterSchemaForRole(
     ast,
     role,
     reachableTypes,
-    parsedDirectives,
-    filterConfig
+    analysis
   );
 
   // Phase 6: フィルタリング済み AST から新しいスキーマを構築

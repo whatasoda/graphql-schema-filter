@@ -5,15 +5,63 @@
  * 推移的に参照されるすべての型を収集する
  */
 
-import { GraphQLSchema } from "graphql";
+import { GraphQLNamedType, GraphQLSchema, NamedTypeNode } from "graphql";
 import type { SchemaAnalysis } from "../types";
-import { isFieldExposed } from "../parser/expose-parser";
 import { traverseGraphQLType } from "./type-traverser";
 
 /**
  * DEBUG_REACHABILITY=1 でデバッグログを有効化
  */
 const DEBUG = process.env.DEBUG_REACHABILITY === "1";
+
+/**
+ * 指定されたロールがフィールドにアクセス可能かを判定
+ *
+ * ルール:
+ * - フィールドに @expose がある場合、そのロールリストで判定
+ * - フィールドに @expose がない場合:
+ *   - Query/Mutation/Subscription 型: 非公開（除外）
+ *   - @disableAutoExpose が付いた型: 非公開（除外）
+ *   - その他の output type: 公開（デフォルト公開）
+ *
+ * @param schema - GraphQLスキーマ
+ * @param parsed - パース済みの @expose ディレクティブ情報
+ * @param typeName - 型名
+ * @param fieldName - フィールド名
+ * @param role - ロール名
+ * @returns フィールドが公開されている場合は true
+ */
+export function isFieldExposed({
+  analysis,
+  typeName,
+  fieldName,
+  role,
+}: {
+  analysis: SchemaAnalysis;
+  typeName: string;
+  fieldName: string;
+  role: string;
+}): boolean {
+  const exposureInfo = analysis.exposureInfoMap.get(typeName);
+  if (!exposureInfo) {
+    return false;
+  }
+
+  // フィールドレベルの @expose をチェック
+  const field = exposureInfo.fields.get(fieldName);
+  if (field !== undefined) {
+    return field.tags.includes(role);
+  }
+
+  // @expose がない場合の判定
+  // Root 型または @disableAutoExpose が付いている型は除外
+  if (exposureInfo.isRootType || exposureInfo.isAutoExposeDisabled) {
+    return false;
+  }
+
+  // その他の output type はデフォルト公開
+  return true;
+}
 
 /**
  * 到達可能な型名を yield する generator
@@ -33,7 +81,7 @@ const DEBUG = process.env.DEBUG_REACHABILITY === "1";
  * lazy evaluation が可能です。通常のユースケースでは `computeReachability` を
  * 使用してください。
  */
-export function* traverseReachableTypes({
+export function traverseReachableTypes({
   schema,
   role,
   analysis,
@@ -41,25 +89,22 @@ export function* traverseReachableTypes({
   schema: GraphQLSchema;
   role: string;
   analysis: SchemaAnalysis;
-}): Generator<string> {
-  let discoveredCount = 0;
+}): Generator<GraphQLNamedType> {
+  const entrypoints = Object.values(analysis.rootTypeNames)
+    .map((typeName) => (typeName ? schema.getType(typeName) : null))
+    .filter((type) => type != null);
 
-  const generator = traverseGraphQLType({
+  return traverseGraphQLType({
     schema,
-    entrypoints: [
-      schema.getQueryType(),
-      schema.getMutationType(),
-      schema.getSubscriptionType(),
-    ].filter((type) => type != null),
+    entrypoints,
     filter: (output) => {
       if (output.source === "outputField") {
-        return isFieldExposed(
-          schema,
+        return isFieldExposed({
           analysis,
-          output.typeName,
-          output.fieldName,
-          role
-        );
+          typeName: output.typeName,
+          fieldName: output.fieldName,
+          role,
+        });
       }
 
       if (output.source === "interfaceField") {
@@ -81,25 +126,6 @@ export function* traverseReachableTypes({
       throw new Error(`Unsupported output source: ${output satisfies never}`);
     },
   });
-
-  // BFS でクロージャを計算
-  for (const type of generator) {
-    discoveredCount++;
-
-    if (DEBUG) {
-      console.log(
-        `[Reachability] Discovered type #${discoveredCount}: ${type.name}`
-      );
-    }
-
-    yield type.name;
-  }
-
-  if (DEBUG) {
-    console.log(
-      `[Reachability] Traversal complete. Total types discovered: ${discoveredCount}`
-    );
-  }
 }
 
 /**
@@ -121,5 +147,18 @@ export function computeReachability(
   role: string,
   analysis: SchemaAnalysis
 ): Set<string> {
-  return new Set<string>(traverseReachableTypes({ schema, role, analysis }));
+  const reachableTypes = new Set<string>(
+    traverseReachableTypes({ schema, role, analysis }).map((type) => {
+      if (DEBUG) {
+        console.log(`[Reachability] Discovered type: ${type.name}`);
+      }
+      return type.name;
+    })
+  );
+
+  if (DEBUG) {
+    console.log(`[Reachability] Traversal complete. Total types discovered: `);
+  }
+
+  return reachableTypes;
 }

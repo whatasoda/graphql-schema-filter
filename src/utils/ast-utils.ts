@@ -10,24 +10,6 @@ import type {
 import type { SchemaAnalysis } from "../types";
 
 /**
- * TypeNode から型名を取得（NonNull/List を unwrap）
- *
- * @param typeNode - GraphQL AST TypeNode
- * @returns 名前付き型の名前
- *
- * @example
- * getTypeNameFromTypeNode({ kind: 'NamedType', name: { value: 'User' } }) // => 'User'
- * getTypeNameFromTypeNode({ kind: 'NonNullType', type: { kind: 'NamedType', name: { value: 'User' } } }) // => 'User'
- * getTypeNameFromTypeNode({ kind: 'ListType', type: { kind: 'NamedType', name: { value: 'User' } } }) // => 'User'
- */
-export function getTypeNameFromTypeNode(typeNode: TypeNode): string {
-  if (typeNode.kind === "NonNullType" || typeNode.kind === "ListType") {
-    return getTypeNameFromTypeNode(typeNode.type);
-  }
-  return typeNode.name.value;
-}
-
-/**
  * AST FieldDefinitionNode から指定されたロールがフィールドにアクセス可能かを判定
  *
  * @param typeName - 親型の名前

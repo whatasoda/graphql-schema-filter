@@ -8,7 +8,7 @@ import {
 import { createSchemaAnalysis } from "../analysis/expose-parser";
 
 describe("isFieldExposed", () => {
-  test("should return true for fields with matching role tag", () => {
+  test("should return true for fields with matching target tag", () => {
     const schema = buildSchema(`
       directive @expose(tags: [String!]!) on FIELD_DEFINITION
 
@@ -24,12 +24,12 @@ describe("isFieldExposed", () => {
         analysis,
         typeName: "Query",
         fieldName: "adminField",
-        role: "admin",
+        target: "admin",
       })
     ).toBe(true);
   });
 
-  test("should return false for fields without matching role tag", () => {
+  test("should return false for fields without matching target tag", () => {
     const schema = buildSchema(`
       directive @expose(tags: [String!]!) on FIELD_DEFINITION
 
@@ -45,7 +45,7 @@ describe("isFieldExposed", () => {
         analysis,
         typeName: "Query",
         fieldName: "adminField",
-        role: "user",
+        target: "user",
       })
     ).toBe(false);
   });
@@ -67,7 +67,7 @@ describe("isFieldExposed", () => {
         analysis,
         typeName: "Query",
         fieldName: "publicField",
-        role: "user",
+        target: "user",
       })
     ).toBe(false);
   });
@@ -94,7 +94,7 @@ describe("isFieldExposed", () => {
         analysis,
         typeName: "User",
         fieldName: "id",
-        role: "user",
+        target: "user",
       })
     ).toBe(true);
     expect(
@@ -102,7 +102,7 @@ describe("isFieldExposed", () => {
         analysis,
         typeName: "User",
         fieldName: "name",
-        role: "user",
+        target: "user",
       })
     ).toBe(true);
   });
@@ -130,7 +130,7 @@ describe("isFieldExposed", () => {
         analysis,
         typeName: "SecureType",
         fieldName: "id",
-        role: "admin",
+        target: "admin",
       })
     ).toBe(false);
 
@@ -140,7 +140,7 @@ describe("isFieldExposed", () => {
         analysis,
         typeName: "SecureType",
         fieldName: "secret",
-        role: "admin",
+        target: "admin",
       })
     ).toBe(true);
   });
@@ -160,13 +160,13 @@ describe("isFieldExposed", () => {
 
     const analysis = createSchemaAnalysis(schema);
 
-    // Field with empty tags should not be exposed to any role
+    // Field with empty tags should not be exposed to any target
     expect(
       isFieldExposed({
         analysis,
         typeName: "User",
         fieldName: "password",
-        role: "admin",
+        target: "admin",
       })
     ).toBe(false);
     expect(
@@ -174,7 +174,7 @@ describe("isFieldExposed", () => {
         analysis,
         typeName: "User",
         fieldName: "password",
-        role: "user",
+        target: "user",
       })
     ).toBe(false);
   });
@@ -321,7 +321,7 @@ describe("computeReachability", () => {
       parsedDirectives
     );
 
-    // Should not include User or Post (no exposed fields for "test" role)
+    // Should not include User or Post (no exposed fields for "test" target)
     expect(reachableTypes.has("User")).toBe(false);
     expect(reachableTypes.has("Post")).toBe(false);
     expect(reachableTypes.has("String")).toBe(false);
@@ -479,7 +479,7 @@ describe("traverseReachableTypes (generator)", () => {
     const parsedDirectives = createSchemaAnalysis(schema);
     const generator = traverseReachableTypes({
       schema,
-      role: "test",
+      target: "test",
       analysis: parsedDirectives,
     });
 
@@ -494,7 +494,7 @@ describe("traverseReachableTypes (generator)", () => {
 
     // Should have stopped early
     expect(firstThree.length).toBe(3);
-    expect(firstThree).toContain("Query");
+    expect(firstThree.map((t) => t.name)).toContain("Query");
   });
 
   test("should produce the same result as computeReachability", () => {
@@ -528,10 +528,10 @@ describe("traverseReachableTypes (generator)", () => {
     const generatorResult = new Set<string>();
     for (const typeName of traverseReachableTypes({
       schema,
-      role: "test",
+      target: "test",
       analysis: parsedDirectives,
     })) {
-      generatorResult.add(typeName);
+      generatorResult.add(typeName.name);
     }
 
     // Should produce identical results
@@ -553,15 +553,15 @@ describe("traverseReachableTypes (generator)", () => {
     const typeNames = [
       ...traverseReachableTypes({
         schema,
-        role: "test",
+        target: "test",
         analysis: parsedDirectives,
       }),
     ];
 
     // Should work with iterator protocol
     expect(typeNames.length).toBeGreaterThan(0);
-    expect(typeNames.includes("Query")).toBe(true);
-    expect(typeNames.includes("String")).toBe(true);
+    expect(typeNames.map((t) => t.name).includes("Query")).toBe(true);
+    expect(typeNames.map((t) => t.name).includes("String")).toBe(true);
   });
 
   test("should return only root types when no fields are exposed", () => {
@@ -578,12 +578,12 @@ describe("traverseReachableTypes (generator)", () => {
     const typeNames = [
       ...traverseReachableTypes({
         schema,
-        role: "test",
+        target: "test",
         analysis: parsedDirectives,
       }),
     ];
 
-    // Should only yield Query (no exposed fields for "test" role)
-    expect(typeNames).toEqual(["Query"]);
+    // Should only yield Query (no exposed fields for "test" target)
+    expect(typeNames.map((t) => t.name)).toEqual(["Query"]);
   });
 });

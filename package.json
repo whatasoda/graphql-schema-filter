@@ -10,6 +10,7 @@
   },
   "scripts": {
     "example": "bun run scripts/example.ts",
+    "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
   "keywords": [

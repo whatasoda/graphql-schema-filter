@@ -1,9 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema, printSchema } from "graphql";
-import { filterSchemaForRole } from "./filter-schema";
+import { filterSchema } from "./filter-schema";
 
-describe("filterSchemaForRole (integration)", () => {
-  test("should filter complete schema for user role", async () => {
+describe("filterSchemaForTarget (integration)", () => {
+  test("should filter complete schema for user target", async () => {
     const schema = buildSchema(`
       directive @expose(tags: [String!]!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
       directive @disableAutoExpose on OBJECT | INTERFACE
@@ -29,9 +29,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchemaForRole(schema, {
-      role: "user",
-      autoInferEntryPoints: true,
+    const filteredSchema = await filterSchema(schema, {
+      target: "user",
     });
 
     const filteredSchemaStr = printSchema(filteredSchema);
@@ -49,7 +48,7 @@ describe("filterSchemaForRole (integration)", () => {
     expect(filteredSchemaStr).not.toContain("CreateUserInput");
   });
 
-  test("should filter complete schema for admin role", async () => {
+  test("should filter complete schema for admin target", async () => {
     const schema = buildSchema(`
       directive @expose(tags: [String!]!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 
@@ -74,9 +73,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchemaForRole(schema, {
-      role: "admin",
-      autoInferEntryPoints: true,
+    const filteredSchema = await filterSchema(schema, {
+      target: "admin",
     });
 
     const filteredSchemaStr = printSchema(filteredSchema);
@@ -111,9 +109,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchemaForRole(schema, {
-      role: "admin",
-      autoInferEntryPoints: true,
+    const filteredSchema = await filterSchema(schema, {
+      target: "admin",
     });
 
     const filteredSchemaStr = printSchema(filteredSchema);
@@ -146,12 +143,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchemaForRole(schema, {
-      role: "user",
-      autoInferEntryPoints: false,
-      entryPoints: {
-        queries: ["user"],
-      },
+    const filteredSchema = await filterSchema(schema, {
+      target: "user",
     });
 
     const filteredSchemaStr = printSchema(filteredSchema);
@@ -184,9 +177,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const userSchema = await filterSchemaForRole(schema, {
-      role: "user",
-      autoInferEntryPoints: true,
+    const userSchema = await filterSchema(schema, {
+      target: "user",
     });
 
     const userSchemaStr = printSchema(userSchema);
@@ -195,9 +187,8 @@ describe("filterSchemaForRole (integration)", () => {
     expect(userSchemaStr).toContain("updateUser(id: ID!, name: String!): User");
     expect(userSchemaStr).not.toContain("createUser:");
 
-    const adminSchema = await filterSchemaForRole(schema, {
-      role: "admin",
-      autoInferEntryPoints: true,
+    const adminSchema = await filterSchema(schema, {
+      target: "admin",
     });
 
     const adminSchemaStr = printSchema(adminSchema);
@@ -230,9 +221,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchemaForRole(schema, {
-      role: "user",
-      autoInferEntryPoints: true,
+    const filteredSchema = await filterSchema(schema, {
+      target: "user",
     });
 
     const filteredSchemaStr = printSchema(filteredSchema);
@@ -269,9 +259,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchemaForRole(schema, {
-      role: "user",
-      autoInferEntryPoints: true,
+    const filteredSchema = await filterSchema(schema, {
+      target: "user",
     });
 
     const filteredSchemaStr = printSchema(filteredSchema);
@@ -305,9 +294,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchemaForRole(schema, {
-      role: "user",
-      autoInferEntryPoints: true,
+    const filteredSchema = await filterSchema(schema, {
+      target: "user",
     });
 
     const filteredSchemaStr = printSchema(filteredSchema);
@@ -346,9 +334,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchemaForRole(schema, {
-      role: "admin",
-      autoInferEntryPoints: true,
+    const filteredSchema = await filterSchema(schema, {
+      target: "admin",
     });
 
     const filteredSchemaStr = printSchema(filteredSchema);
@@ -373,9 +360,8 @@ describe("filterSchemaForRole (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchemaForRole(schema, {
-      role: "user",
-      autoInferEntryPoints: true,
+    const filteredSchema = await filterSchema(schema, {
+      target: "user",
     });
 
     const filteredSchemaStr = printSchema(filteredSchema);

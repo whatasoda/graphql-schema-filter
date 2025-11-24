@@ -8,7 +8,7 @@
  */
 
 import { buildSchema, printSchema } from "graphql";
-import { filterSchemaForRole } from "../src";
+import { filterSchemaForTarget } from "../src";
 
 // サンプルスキーマを定義
 const schema = buildSchema(`
@@ -45,20 +45,20 @@ const schema = buildSchema(`
 async function main() {
   console.log("=== GraphQL Schema Extract - Basic Usage Example ===\n");
 
-  // readonly ロール用にフィルタリング
-  console.log('🔍 Filtering for "readonly" role...\n');
-  const readonlySchema = await filterSchemaForRole(schema, {
-    role: "readonly",
+  // readonly ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "readonly" target...\n');
+  const readonlySchema = await filterSchemaForTarget(schema, {
+    target: "readonly",
   });
 
   console.log("📋 Filtered Schema (readonly):\n");
   console.log(printSchema(readonlySchema));
   console.log("\n" + "=".repeat(60) + "\n");
 
-  // admin ロール用にフィルタリング
-  console.log('🔍 Filtering for "admin" role...\n');
-  const adminSchema = await filterSchemaForRole(schema, {
-    role: "admin",
+  // admin ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "admin" target...\n');
+  const adminSchema = await filterSchemaForTarget(schema, {
+    target: "admin",
   });
 
   console.log("📋 Filtered Schema (admin):\n");

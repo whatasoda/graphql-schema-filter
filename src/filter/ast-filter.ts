@@ -15,17 +15,17 @@ import type {
 import type { SchemaAnalysis } from "../types";
 
 /**
- * AST FieldDefinitionNode から指定されたロールがフィールドにアクセス可能かを判定
+ * AST FieldDefinitionNode から指定されたターゲットがフィールドにアクセス可能かを判定
  *
  * @param typeName - 親型の名前
  * @param field - フィールド定義 AST ノード
  * @param analysis - SchemaAnalysis 情報
- * @param role - ロール名
+ * @param target - ターゲット名
  * @returns フィールドが公開されている場合 true
  *
  * @remarks
  * ルール:
- * - フィールドに @expose がある場合、そのロールリストで判定
+ * - フィールドに @expose がある場合、そのターゲットリストで判定
  * - フィールドに @expose がない場合:
  *   - Query/Mutation/Subscription 型: 非公開（除外）
  *   - @disableAutoExpose が付いた型: 非公開（除外）
@@ -35,12 +35,12 @@ export function isFieldExposedFromAST({
   typeName,
   field,
   analysis,
-  role,
+  target,
 }: {
   typeName: string;
   field: FieldDefinitionNode | InputValueDefinitionNode;
   analysis: SchemaAnalysis;
-  role: string;
+  target: string;
 }): boolean {
   const exposureInfo = analysis.exposureInfoMap.get(typeName);
   if (!exposureInfo) {
@@ -50,7 +50,7 @@ export function isFieldExposedFromAST({
   // フィールドレベルの @expose をチェック
   const fieldInfo = exposureInfo.fields.get(field.name.value);
   if (fieldInfo !== undefined) {
-    return fieldInfo.tags.includes(role);
+    return fieldInfo.tags.includes(target);
   }
 
   // @expose がない場合の判定
@@ -68,13 +68,13 @@ export function isFieldExposedFromAST({
  *
  * @param typeDef - Object 型定義 AST ノード
  * @param analysis - パース済みの @expose ディレクティブ情報
- * @param role - 対象ロール
+ * @param target - 対象ターゲット
  * @returns フィルタリング済みのフィールド配列
  */
 function filterObjectFields(
   typeDef: ObjectTypeDefinitionNode,
   analysis: SchemaAnalysis,
-  role: string
+  target: string
 ): readonly FieldDefinitionNode[] | undefined {
   if (!typeDef.fields) {
     return undefined;
@@ -86,7 +86,7 @@ function filterObjectFields(
       typeName: typeDef.name.value,
       field,
       analysis,
-      role,
+      target,
     })
   );
 }
@@ -96,13 +96,13 @@ function filterObjectFields(
  *
  * @param typeDef - Interface 型定義 AST ノード
  * @param analysis - パース済みの @expose ディレクティブ情報
- * @param role - 対象ロール
+ * @param target - 対象ターゲット
  * @returns フィルタリング済みのフィールド配列
  */
 function filterInterfaceFields(
   typeDef: InterfaceTypeDefinitionNode,
   analysis: SchemaAnalysis,
-  role: string
+  target: string
 ): readonly FieldDefinitionNode[] | undefined {
   if (!typeDef.fields) {
     return undefined;
@@ -114,7 +114,7 @@ function filterInterfaceFields(
       typeName: typeDef.name.value,
       field,
       analysis,
-      role,
+      target,
     })
   );
 }
@@ -124,7 +124,7 @@ function filterInterfaceFields(
  *
  * @param typeDef - InputObject 型定義 AST ノード
  * @param analysis - パース済みの @expose ディレクティブ情報
- * @param role - 対象ロール
+ * @param target - 対象ターゲット
  * @returns フィルタリング済みのフィールド配列
  *
  * @remarks
@@ -133,7 +133,7 @@ function filterInterfaceFields(
 function filterInputObjectFields(
   typeDef: InputObjectTypeDefinitionNode,
   analysis: SchemaAnalysis,
-  role: string
+  target: string
 ): readonly InputValueDefinitionNode[] | undefined {
   if (!typeDef.fields) {
     return undefined;
@@ -144,7 +144,7 @@ function filterInputObjectFields(
       typeName: typeDef.name.value,
       field,
       analysis,
-      role,
+      target,
     })
   );
 }
@@ -154,7 +154,7 @@ function filterInputObjectFields(
  *
  * @param typeDef - Object 型定義 AST ノード
  * @param analysis - パース済みの @expose ディレクティブ情報
- * @param role - 対象ロール
+ * @param target - 対象ターゲット
  * @param config - フィルタリング設定
  * @param reachableTypes - 到達可能な型名の集合
  * @returns フィルタリング済みの Object 型定義、またはフィールドが空の場合 null
@@ -162,10 +162,10 @@ function filterInputObjectFields(
 function filterObjectTypeDefinition(
   typeDef: ObjectTypeDefinitionNode,
   analysis: SchemaAnalysis,
-  role: string,
+  target: string,
   reachableTypes: Set<string>
 ): ObjectTypeDefinitionNode | null {
-  const filteredFields = filterObjectFields(typeDef, analysis, role);
+  const filteredFields = filterObjectFields(typeDef, analysis, target);
 
   // フィールドが空の場合は型を削除
   if (!filteredFields || filteredFields.length === 0) {
@@ -189,17 +189,17 @@ function filterObjectTypeDefinition(
  *
  * @param typeDef - Interface 型定義 AST ノード
  * @param analysis - パース済みの @expose ディレクティブ情報
- * @param role - 対象ロール
+ * @param target - 対象ターゲット
  * @param reachableTypes - 到達可能な型名の集合
  * @returns フィルタリング済みの Interface 型定義、またはフィールドが空の場合 null
  */
 function filterInterfaceTypeDefinition(
   typeDef: InterfaceTypeDefinitionNode,
   analysis: SchemaAnalysis,
-  role: string,
+  target: string,
   reachableTypes: Set<string>
 ): InterfaceTypeDefinitionNode | null {
-  const filteredFields = filterInterfaceFields(typeDef, analysis, role);
+  const filteredFields = filterInterfaceFields(typeDef, analysis, target);
 
   // フィールドが空の場合は型を削除
   if (!filteredFields || filteredFields.length === 0) {
@@ -223,15 +223,15 @@ function filterInterfaceTypeDefinition(
  *
  * @param typeDef - InputObject 型定義 AST ノード
  * @param analysis - パース済みの @expose ディレクティブ情報
- * @param role - 対象ロール
+ * @param target - 対象ターゲット
  * @returns フィルタリング済みの InputObject 型定義、またはフィールドが空の場合 null
  */
 function filterInputObjectTypeDefinition(
   typeDef: InputObjectTypeDefinitionNode,
   analysis: SchemaAnalysis,
-  role: string
+  target: string
 ): InputObjectTypeDefinitionNode | null {
-  const filteredFields = filterInputObjectFields(typeDef, analysis, role);
+  const filteredFields = filterInputObjectFields(typeDef, analysis, target);
 
   // フィールドが空の場合は型を削除
   if (!filteredFields || filteredFields.length === 0) {
@@ -282,7 +282,7 @@ function filterUnionTypeDefinition(
  * DocumentNode の definitions をフィルタリング
  *
  * @param documentNode - GraphQL AST DocumentNode
- * @param role - 対象ロール
+ * @param target - 対象ターゲット
  * @param reachableTypes - 到達可能な型名の集合
  * @param analysis - パース済みの @expose ディレクティブ情報
  * @returns フィルタリング済みの DefinitionNode 配列
@@ -296,7 +296,7 @@ function filterUnionTypeDefinition(
  */
 export function filterDefinitionsAST(
   documentNode: DocumentNode,
-  role: string,
+  target: string,
   reachableTypes: Set<string>,
   analysis: SchemaAnalysis
 ): DefinitionNode[] {
@@ -340,7 +340,7 @@ export function filterDefinitionsAST(
         const filtered = filterObjectTypeDefinition(
           def,
           analysis,
-          role,
+          target,
           reachableTypes
         );
 
@@ -360,14 +360,14 @@ export function filterDefinitionsAST(
         return filterInterfaceTypeDefinition(
           def,
           analysis,
-          role,
+          target,
           reachableTypes
         );
       }
 
       // InputObject 型のフィールドフィルタリング
       if (def.kind === "InputObjectTypeDefinition") {
-        return filterInputObjectTypeDefinition(def, analysis, role);
+        return filterInputObjectTypeDefinition(def, analysis, target);
       }
 
       // Union 型のメンバーフィルタリング

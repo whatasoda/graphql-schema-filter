@@ -1,6 +1,6 @@
 # graphql-schema-extract
 
-GraphQL schema filtering library with `@expose` directive support for role-based access control.
+GraphQL schema filtering library with `@expose` directive support for target-based access control.
 
 ## Features
 
@@ -51,16 +51,16 @@ input CreateUserInput {
 }
 ```
 
-### 2. Filter schema for a specific role
+### 2. Filter schema for a specific target
 
 ```typescript
-import { filterSchemaForRole } from "graphql-schema-extract";
+import { filterSchemaForTarget } from "graphql-schema-extract";
 import { buildSchema } from "graphql";
 
 const schema = buildSchema(/* your schema */);
 
-const filteredSchema = await filterSchemaForRole(schema, {
-  role: "readonly",
+const filteredSchema = await filterSchemaForTarget(schema, {
+  target: "readonly",
   autoInferEntryPoints: true,
 });
 ```
@@ -70,9 +70,9 @@ const filteredSchema = await filterSchemaForRole(schema, {
 The library implements a type reachability closure algorithm:
 
 1. **Parse @expose directives** from your GraphQL schema
-2. **Infer entry points** - Query/Mutation fields marked with `@expose` for the target role
+2. **Infer entry points** - Query/Mutation fields marked with `@expose` for the target
 3. **Compute reachability** - BFS traversal to find all types referenced from entry points
-4. **Filter fields** - Remove fields not exposed to the target role
+4. **Filter fields** - Remove fields not exposed to the target
 5. **Rebuild schema** - Create new GraphQL schema with filtered types
 
 ## @expose Directive Rules
@@ -88,7 +88,7 @@ type User {
   name: String!
   email: String!
 
-  # Restrict to specific roles
+  # Restrict to specific targets
   salary: Float @expose(tags: ["admin"])
 
   # Explicitly exclude with empty tags
@@ -97,7 +97,7 @@ type User {
 ```
 
 **Default behavior:** Fields without `@expose` are **included** (auto-exposed). Use `@expose` to:
-- **Restrict** fields to specific roles: `@expose(tags: ["admin"])`
+- **Restrict** fields to specific targets: `@expose(tags: ["admin"])`
 - **Exclude** fields from all roles: `@expose(tags: [])`
 
 ### Query/Mutation Root Types - Explicit Required
@@ -146,7 +146,7 @@ input CreateUserInput {
   name: String!
   email: String!
 
-  # Restrict to specific roles
+  # Restrict to specific targets
   salary: Float @expose(tags: ["admin"])
 
   # Still included (permissive)
@@ -158,15 +158,15 @@ input CreateUserInput {
 
 ## API Reference
 
-### `filterSchemaForRole(schema, options)`
+### `filterSchemaForTarget(schema, options)`
 
-Main function to filter a GraphQL schema for a specific role.
+Main function to filter a GraphQL schema for a specific target.
 
 **Parameters:**
 
 - `schema`: GraphQLSchema - The schema to filter
 - `options`: FilterSchemaOptions
-  - `role`: string - Target role (e.g., "readonly", "admin")
+  - `target`: string - Target name (e.g., "readonly", "admin")
   - `autoInferEntryPoints?`: boolean - Auto-detect entry points from @expose (default: true)
   - `entryPoints?`: object - Manual entry points (queries, mutations, types)
   - `reachabilityConfig?`: Partial<ReachabilityConfig> - Reachability analysis options
@@ -240,4 +240,4 @@ MIT
 
 ## Credits
 
-This library implements the type reachability closure algorithm for GraphQL schema filtering with role-based access control.
+This library implements the type reachability closure algorithm for GraphQL schema filtering with target-based access control.

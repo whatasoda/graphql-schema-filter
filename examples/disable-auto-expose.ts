@@ -11,7 +11,7 @@
  */
 
 import { buildSchema, printSchema } from "graphql";
-import { filterSchemaForRole } from "../src";
+import { filterSchemaForTarget } from "../src";
 
 const schema = buildSchema(`
   directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
@@ -53,10 +53,10 @@ const schema = buildSchema(`
 async function main() {
   console.log("=== @disableAutoExpose Test ===\n");
 
-  // public ロール用にフィルタリング
-  console.log('🔍 Filtering for "public" role...\n');
-  const publicSchema = await filterSchemaForRole(schema, {
-    role: "public",
+  // public ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "public" target...\n');
+  const publicSchema = await filterSchemaForTarget(schema, {
+    target: "public",
     autoInferEntryPoints: true,
   });
 
@@ -64,10 +64,10 @@ async function main() {
   console.log(printSchema(publicSchema));
   console.log("\n" + "=".repeat(60) + "\n");
 
-  // authenticated ロール用にフィルタリング
-  console.log('🔍 Filtering for "authenticated" role...\n');
-  const authSchema = await filterSchemaForRole(schema, {
-    role: "authenticated",
+  // authenticated ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "authenticated" target...\n');
+  const authSchema = await filterSchemaForTarget(schema, {
+    target: "authenticated",
     autoInferEntryPoints: true,
   });
 
@@ -75,10 +75,10 @@ async function main() {
   console.log(printSchema(authSchema));
   console.log("\n" + "=".repeat(60) + "\n");
 
-  // admin ロール用にフィルタリング
-  console.log('🔍 Filtering for "admin" role...\n');
-  const adminSchema = await filterSchemaForRole(schema, {
-    role: "admin",
+  // admin ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "admin" target...\n');
+  const adminSchema = await filterSchemaForTarget(schema, {
+    target: "admin",
     autoInferEntryPoints: true,
   });
 

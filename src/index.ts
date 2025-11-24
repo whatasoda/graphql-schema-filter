@@ -2,13 +2,13 @@
  * GraphQL Schema Extract
  *
  * A library for filtering GraphQL schemas based on @expose directive.
- * Supports role-based access control with type reachability analysis.
+ * Supports target-based access control with type reachability analysis.
  *
  * @packageDocumentation
  */
 
 // メイン関数
-export { filterSchemaForRole } from "./filter/filter-schema";
+export { filterSchema as filterSchemaForTarget } from "./filter/filter-schema";
 
 // Parser関連の純粋関数
 export {

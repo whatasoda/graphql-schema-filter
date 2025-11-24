@@ -101,7 +101,7 @@ type BillingInfo {
 }
 ```
 
-**Expected behavior (admin role)**:
+**Expected behavior (admin target)**:
 ```graphql
 type BillingInfo {
   plan: String!
@@ -120,7 +120,7 @@ type BillingInfo {
 ### Debug Output
 
 ```
-[DEBUG] BillingInfo.internalNotes: shouldInclude=false, role=admin
+[DEBUG] BillingInfo.internalNotes: shouldInclude=false, target=admin
 [DEBUG] Filtered BillingInfo fields: [ "plan", "creditCard" ]
 [DEBUG] replaceTypeReferences(BillingInfo): filteredType exists=false
 ```

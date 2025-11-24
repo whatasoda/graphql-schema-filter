@@ -20,7 +20,7 @@ import { computeReachability } from "../reachability/reachability";
 import { filterDefinitionsAST } from "./ast-filter";
 
 /**
- * スキーマをフィルタリングして、指定ロール用のスキーマを生成
+ * スキーマをフィルタリングして、指定ターゲット用のスキーマを生成
  *
  * @param schema - 元のGraphQLスキーマ
  * @param options - フィルタリングオプション
@@ -35,11 +35,11 @@ import { filterDefinitionsAST } from "./ast-filter";
  * 5. AST Filtering: AST 定義を到達可能性・expose ルールでフィルタリング
  * 6. Schema Building: フィルタリング済み AST から新しいスキーマを構築
  */
-export async function filterSchemaForRole(
+export async function filterSchema(
   schema: GraphQLSchema,
   options: FilterSchemaOptions
 ): Promise<GraphQLSchema> {
-  const { role } = options;
+  const { target } = options;
 
   // Phase 1: @expose ディレクティブをパース
   const analysis = createSchemaAnalysis(schema);
@@ -50,7 +50,7 @@ export async function filterSchemaForRole(
   }
 
   // Phase 3: 到達可能な型を計算
-  const reachableTypes = computeReachability(schema, role, analysis);
+  const reachableTypes = computeReachability(schema, target, analysis);
 
   console.log(`Reachable types: ${reachableTypes.size}`);
 
@@ -61,7 +61,7 @@ export async function filterSchemaForRole(
   // Phase 5: AST をフィルタリング
   const filteredDefinitions = filterDefinitionsAST(
     ast,
-    role,
+    target,
     reachableTypes,
     analysis
   );
@@ -72,7 +72,7 @@ export async function filterSchemaForRole(
     definitions: filteredDefinitions,
   });
 
-  console.log(`Filtered schema created for role "${role}"`);
+  console.log(`Filtered schema created for target "${target}"`);
 
   return filteredSchema;
 }

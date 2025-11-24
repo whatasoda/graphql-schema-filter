@@ -11,7 +11,7 @@
  */
 
 import { buildSchema, printSchema } from "graphql";
-import { filterSchemaForRole } from "../src";
+import { filterSchemaForTarget } from "../src";
 
 const schema = buildSchema(`
   directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
@@ -68,22 +68,20 @@ const schema = buildSchema(`
 async function main() {
   console.log("=== Polymorphic Types Test ===\n");
 
-  // public ロール用にフィルタリング
-  console.log('🔍 Filtering for "public" role...\n');
-  const publicSchema = await filterSchemaForRole(schema, {
-    role: "public",
-    autoInferEntryPoints: true,
+  // public ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "public" target...\n');
+  const publicSchema = await filterSchemaForTarget(schema, {
+    target: "public",
   });
 
   console.log("📋 Filtered Schema (public):\n");
   console.log(printSchema(publicSchema));
   console.log("\n" + "=".repeat(60) + "\n");
 
-  // admin ロール用にフィルタリング
-  console.log('🔍 Filtering for "admin" role...\n');
-  const adminSchema = await filterSchemaForRole(schema, {
-    role: "admin",
-    autoInferEntryPoints: true,
+  // admin ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "admin" target...\n');
+  const adminSchema = await filterSchemaForTarget(schema, {
+    target: "admin",
   });
 
   console.log("📋 Filtered Schema (admin):\n");

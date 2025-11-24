@@ -39,7 +39,7 @@ export interface SchemaAnalysis {
  */
 export interface FilterSchemaOptions {
   /**
-   * 対象ロール
+   * 対象ターゲット
    */
-  role: string;
+  target: string;
 }

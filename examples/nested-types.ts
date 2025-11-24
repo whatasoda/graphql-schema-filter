@@ -11,7 +11,7 @@
  */
 
 import { buildSchema, printSchema } from "graphql";
-import { filterSchemaForRole } from "../src";
+import { filterSchemaForTarget } from "../src";
 
 const schema = buildSchema(`
   directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
@@ -59,30 +59,30 @@ const schema = buildSchema(`
 async function main() {
   console.log("=== Nested Types Test ===\n");
 
-  // member ロール用にフィルタリング
-  console.log('🔍 Filtering for "member" role...\n');
-  const memberSchema = await filterSchemaForRole(schema, {
-    role: "member",
+  // member ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "member" target...\n');
+  const memberSchema = await filterSchemaForTarget(schema, {
+    target: "member",
   });
 
   console.log("📋 Filtered Schema (member):\n");
   console.log(printSchema(memberSchema));
   console.log("\n" + "=".repeat(60) + "\n");
 
-  // admin ロール用にフィルタリング
-  console.log('🔍 Filtering for "admin" role...\n');
-  const adminSchema = await filterSchemaForRole(schema, {
-    role: "admin",
+  // admin ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "admin" target...\n');
+  const adminSchema = await filterSchemaForTarget(schema, {
+    target: "admin",
   });
 
   console.log("📋 Filtered Schema (admin):\n");
   console.log(printSchema(adminSchema));
   console.log("\n" + "=".repeat(60) + "\n");
 
-  // team-lead ロール用にフィルタリング
-  console.log('🔍 Filtering for "team-lead" role...\n');
-  const teamLeadSchema = await filterSchemaForRole(schema, {
-    role: "team-lead",
+  // team-lead ターゲット用にフィルタリング
+  console.log('🔍 Filtering for "team-lead" target...\n');
+  const teamLeadSchema = await filterSchemaForTarget(schema, {
+    target: "team-lead",
   });
 
   console.log("📋 Filtered Schema (team-lead):\n");

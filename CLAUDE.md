@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GraphQL schema filtering library with `@expose` directive support for role-based access control. The library transforms GraphQL schemas by filtering types and fields based on role-specific visibility rules defined through `@expose` directives.
+GraphQL schema filtering library with `@expose` directive support for target-based access control. The library transforms GraphQL schemas by filtering types and fields based on target-specific visibility rules defined through `@expose` directives.
 
 **NOTE:** This library is not yet published to npm. Breaking changes are allowed without a major version bump.
 
@@ -62,7 +62,7 @@ Extracts `@expose` and `@disableAutoExpose` directives from GraphQL schema AST a
 
 Computes type reachability closure using **BFS traversal** from entry points:
 
-- Entry points: Query/Mutation fields exposed via `@expose` for the target role, plus their return types
+- Entry points: Query/Mutation fields exposed via `@expose` for the target, plus their return types
 - Traversal follows: return types, argument types, interface implementations, union members, input object fields
 - Configurable via `ReachabilityConfig`:
   - `includeInterfaceImplementations`: Include interface's possible types (default: true)
@@ -85,10 +85,10 @@ Rebuilds GraphQL schema with only reachable types and exposed fields using a **2
 
 - Filter types by reachability
 - For Object/Interface types, filter fields based on `fieldRetention` policy:
-  - `'exposed-only'`: Only include fields exposed to the role (default)
+  - `'exposed-only'`: Only include fields exposed to the target (default)
   - `'all-for-included-type'`: Include all fields if type is reachable
 - For InputObject types, use permissive mode:
-  - Fields with `@expose` are checked against the role
+  - Fields with `@expose` are checked against the target
   - Fields without `@expose` are included by default
 
 **Pass 2:** Build root types (Query/Mutation/Subscription)

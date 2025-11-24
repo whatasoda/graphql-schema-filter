@@ -15,10 +15,10 @@ import { traverseGraphQLType } from "./traverse";
 const DEBUG = process.env.DEBUG_REACHABILITY === "1";
 
 /**
- * 指定されたロールがフィールドにアクセス可能かを判定
+ * 指定されたターゲットがフィールドにアクセス可能かを判定
  *
  * ルール:
- * - フィールドに @expose がある場合、そのロールリストで判定
+ * - フィールドに @expose がある場合、そのターゲットリストで判定
  * - フィールドに @expose がない場合:
  *   - Query/Mutation/Subscription 型: 非公開（除外）
  *   - @disableAutoExpose が付いた型: 非公開（除外）
@@ -28,19 +28,19 @@ const DEBUG = process.env.DEBUG_REACHABILITY === "1";
  * @param parsed - パース済みの @expose ディレクティブ情報
  * @param typeName - 型名
  * @param fieldName - フィールド名
- * @param role - ロール名
+ * @param target - ターゲット名
  * @returns フィールドが公開されている場合は true
  */
 export function isFieldExposed({
   analysis,
   typeName,
   fieldName,
-  role,
+  target,
 }: {
   analysis: SchemaAnalysis;
   typeName: string;
   fieldName: string;
-  role: string;
+  target: string;
 }): boolean {
   const exposureInfo = analysis.exposureInfoMap.get(typeName);
   if (!exposureInfo) {
@@ -50,7 +50,7 @@ export function isFieldExposed({
   // フィールドレベルの @expose をチェック
   const field = exposureInfo.fields.get(fieldName);
   if (field !== undefined) {
-    return field.tags.includes(role);
+    return field.tags.includes(target);
   }
 
   // @expose がない場合の判定
@@ -67,13 +67,13 @@ export function isFieldExposed({
  * 到達可能な型名を yield する generator
  *
  * @param schema - GraphQL スキーマ
- * @param role - 対象ロール
+ * @param target - 対象ターゲット
  * @param analysis - @expose ディレクティブの解析結果
  * @yields 到達可能な型名
  *
  * @remarks
  * BFS アルゴリズムを使用して、エントリーポイントから推移的に参照される
- * すべての型名を yield します。ロールに公開されていないフィールド経由の型は
+ * すべての型名を yield します。ターゲットに公開されていないフィールド経由の型は
  * 到達不能と判定されます。
  *
  * @public
@@ -83,11 +83,11 @@ export function isFieldExposed({
  */
 export function traverseReachableTypes({
   schema,
-  role,
+  target,
   analysis,
 }: {
   schema: GraphQLSchema;
-  role: string;
+  target: string;
   analysis: SchemaAnalysis;
 }): Generator<GraphQLNamedType> {
   const entrypoints = Object.values(analysis.rootTypeNames)
@@ -103,7 +103,7 @@ export function traverseReachableTypes({
           analysis,
           typeName: output.typeName,
           fieldName: output.fieldName,
-          role,
+          target,
         });
       }
 
@@ -132,7 +132,7 @@ export function traverseReachableTypes({
  * 型到達可能性を計算する
  *
  * @param schema - GraphQLスキーマ
- * @param role - 対象ロール
+ * @param target - 対象ターゲット
  * @param analysis - @expose ディレクティブの解析結果
  * @returns 到達可能な型名の集合
  *
@@ -140,15 +140,15 @@ export function traverseReachableTypes({
  * BFSアルゴリズムを使用して、エントリーポイントから推移的に参照される
  * すべての型を収集します。内部で generator を使用しますが、外部 API は
  * 通常の Set を返す純粋関数です。
- * ロールに公開されていないフィールド経由の型は到達不能と判定されます。
+ * ターゲットに公開されていないフィールド経由の型は到達不能と判定されます。
  */
 export function computeReachability(
   schema: GraphQLSchema,
-  role: string,
+  target: string,
   analysis: SchemaAnalysis
 ): Set<string> {
   const reachableTypes = new Set<string>(
-    traverseReachableTypes({ schema, role, analysis }).map((type) => {
+    traverseReachableTypes({ schema, target, analysis }).map((type) => {
       if (DEBUG) {
         console.log(`[Reachability] Discovered type: ${type.name}`);
       }

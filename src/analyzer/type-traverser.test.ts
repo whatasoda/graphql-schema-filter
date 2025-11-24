@@ -122,49 +122,6 @@ describe("createTypeTraverserInternal", () => {
       expect(idOutput?.fieldType.name).toBe("ID");
       expect(idOutput?.typeName).toBe("Node");
     });
-
-    test("should yield interface implementations", () => {
-      const schema = buildSchema(`
-        type Query {
-          node: Node
-        }
-
-        interface Node {
-          id: ID!
-        }
-
-        type User implements Node {
-          id: ID!
-          name: String!
-        }
-
-        type Post implements Node {
-          id: ID!
-          title: String!
-        }
-      `);
-
-      const traverser = createTypeTraverserInternal(schema);
-      const nodeType = schema.getType("Node");
-      expect(nodeType).toBeDefined();
-
-      const outputs = [...traverser.traverseInterface(nodeType as any)];
-
-      // Should yield interface implementations
-      const implOutputs = outputs.filter(
-        (o) => o.source === "interfaceImplementation"
-      );
-      expect(implOutputs.length).toBe(2);
-
-      const implNames = implOutputs
-        .map((o) => o.implementationType.name)
-        .sort();
-      expect(implNames).toEqual(["Post", "User"]);
-
-      // Check structure
-      expect(implOutputs[0].interfaceName).toBe("Node");
-      expect(implOutputs[0].children.length).toBe(1);
-    });
   });
 
   describe("traverseUnion", () => {

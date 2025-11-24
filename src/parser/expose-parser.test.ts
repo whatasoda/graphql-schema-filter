@@ -26,27 +26,27 @@ describe("parseExposeDirectives", () => {
       }
     `);
 
-    const parsed = parseExposeDirectives(schema);
+    const analysis = parseExposeDirectives(schema);
 
     // Query.adminField should have "admin" tag
-    expect(parsed.fieldExposeMap.get("Query")?.get("adminField")).toEqual([
-      "admin",
-    ]);
+    expect(
+      analysis.exposureInfoMap.get("Query")?.fields.get("adminField")?.tags
+    ).toEqual(["admin"]);
 
     // Query.userField should have both "user" and "admin" tags
-    expect(parsed.fieldExposeMap.get("Query")?.get("userField")).toEqual([
-      "user",
-      "admin",
-    ]);
+    expect(
+      analysis.exposureInfoMap.get("Query")?.fields.get("userField")?.tags
+    ).toEqual(["user", "admin"]);
 
     // User.email should have "user" and "admin" tags
-    expect(parsed.fieldExposeMap.get("User")?.get("email")).toEqual([
-      "user",
-      "admin",
-    ]);
+    expect(
+      analysis.exposureInfoMap.get("User")?.fields.get("email")?.tags
+    ).toEqual(["user", "admin"]);
 
     // User.password should have empty tags (explicitly excluded)
-    expect(parsed.fieldExposeMap.get("User")?.get("password")).toEqual([]);
+    expect(
+      analysis.exposureInfoMap.get("User")?.fields.get("password")?.tags
+    ).toEqual([]);
   });
 
   test("should parse @disableAutoExpose directive", () => {
@@ -64,13 +64,17 @@ describe("parseExposeDirectives", () => {
       }
     `);
 
-    const parsed = parseExposeDirectives(schema);
+    const analysis = parseExposeDirectives(schema);
 
-    // SecureType should be in typeDisableAutoExposeSet
-    expect(parsed.typeDisableAutoExposeSet.has("SecureType")).toBe(true);
+    // SecureType should have isAutoExposeDisabled = true
+    expect(analysis.exposureInfoMap.get("SecureType")?.isAutoExposeDisabled).toBe(
+      true
+    );
 
-    // Query should not be in typeDisableAutoExposeSet
-    expect(parsed.typeDisableAutoExposeSet.has("Query")).toBe(false);
+    // Query should have isAutoExposeDisabled = false
+    expect(analysis.exposureInfoMap.get("Query")?.isAutoExposeDisabled).toBe(
+      false
+    );
   });
 
   test("should handle schema with no @expose directives", () => {
@@ -85,13 +89,28 @@ describe("parseExposeDirectives", () => {
       }
     `);
 
-    const parsed = parseExposeDirectives(schema);
+    const analysis = parseExposeDirectives(schema);
 
-    // fieldExposeMap should be empty
-    expect(parsed.fieldExposeMap.size).toBe(0);
+    // exposureInfoMap should have entries but with no explicit @expose fields
+    expect(analysis.exposureInfoMap.size).toBeGreaterThan(0);
 
-    // typeDisableAutoExposeSet should be empty
-    expect(parsed.typeDisableAutoExposeSet.size).toBe(0);
+    // No types should have @expose directives on fields
+    let hasExposedFields = false;
+    for (const typeInfo of analysis.exposureInfoMap.values()) {
+      if (typeInfo.fields.size > 0) {
+        hasExposedFields = true;
+      }
+    }
+    expect(hasExposedFields).toBe(false);
+
+    // No types should have @disableAutoExpose
+    let hasDisabledTypes = false;
+    for (const typeInfo of analysis.exposureInfoMap.values()) {
+      if (typeInfo.isAutoExposeDisabled) {
+        hasDisabledTypes = true;
+      }
+    }
+    expect(hasDisabledTypes).toBe(false);
   });
 
   test("should memoize results for same schema", () => {

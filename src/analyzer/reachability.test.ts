@@ -304,7 +304,7 @@ describe("traverseReachableTypes (generator)", () => {
     const generator = traverseReachableTypes({
       schema,
       role: "test",
-      parsedDirectives,
+      analysis: parsedDirectives,
     });
 
     // Take only the first 3 types
@@ -353,7 +353,7 @@ describe("traverseReachableTypes (generator)", () => {
     for (const typeName of traverseReachableTypes({
       schema,
       role: "test",
-      parsedDirectives,
+      analysis: parsedDirectives,
     })) {
       generatorResult.add(typeName);
     }
@@ -378,7 +378,7 @@ describe("traverseReachableTypes (generator)", () => {
       ...traverseReachableTypes({
         schema,
         role: "test",
-        parsedDirectives,
+        analysis: parsedDirectives,
       }),
     ];
 
@@ -403,7 +403,7 @@ describe("traverseReachableTypes (generator)", () => {
       ...traverseReachableTypes({
         schema,
         role: "test",
-        parsedDirectives,
+        analysis: parsedDirectives,
       }),
     ];
 

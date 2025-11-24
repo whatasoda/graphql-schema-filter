@@ -56,7 +56,7 @@ interface TraversalOutput__UnionMember extends TraversalOutputBase {
   unionName: string;
 }
 
-type TraversalOutput =
+type TraverseOutput =
   | TraversalOutput__OutputField
   | TraversalOutput__InterfaceField
   | TraversalOutput__InputField
@@ -65,7 +65,7 @@ type TraversalOutput =
 
 export function createTypeTraverserInternal(schema: GraphQLSchema) {
   return {
-    *traverseObject(type: GraphQLObjectType): Generator<TraversalOutput> {
+    *traverseObject(type: GraphQLObjectType): Generator<TraverseOutput> {
       for (const field of Object.values(type.getFields())) {
         const fieldType = getNamedType(field.type);
 
@@ -91,7 +91,7 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
       }
     },
 
-    *traverseInterface(type: GraphQLInterfaceType): Generator<TraversalOutput> {
+    *traverseInterface(type: GraphQLInterfaceType): Generator<TraverseOutput> {
       for (const field of Object.values(type.getFields())) {
         const fieldType = getNamedType(field.type);
 
@@ -108,7 +108,7 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
       }
     },
 
-    *traverseUnion(type: GraphQLUnionType): Generator<TraversalOutput> {
+    *traverseUnion(type: GraphQLUnionType): Generator<TraverseOutput> {
       for (const memberType of schema.getPossibleTypes(type)) {
         yield {
           source: "unionMember" as const,
@@ -121,7 +121,7 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
 
     *traverseInputObject(
       type: GraphQLInputObjectType
-    ): Generator<TraversalOutput> {
+    ): Generator<TraverseOutput> {
       for (const field of Object.values(type.getFields())) {
         const fieldType = getNamedType(field.type);
 
@@ -135,17 +135,17 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
       }
     },
 
-    *traverseScalar(type: GraphQLScalarType): Generator<TraversalOutput> {
+    *traverseScalar(type: GraphQLScalarType): Generator<TraverseOutput> {
       // Nothing to yield
       void type;
     },
 
-    *traverseEnum(type: GraphQLEnumType): Generator<TraversalOutput> {
+    *traverseEnum(type: GraphQLEnumType): Generator<TraverseOutput> {
       // Nothing to yield
       void type;
     },
 
-    traverseNamedType(type: GraphQLNamedType): Generator<TraversalOutput> {
+    traverseNamedType(type: GraphQLNamedType): Generator<TraverseOutput> {
       if (isObjectType(type)) {
         return this.traverseObject(type);
       }
@@ -182,7 +182,7 @@ export function traverseGraphQLType({
 }: {
   schema: GraphQLSchema;
   entrypoints: GraphQLNamedType[];
-  filter: (output: TraversalOutput) => boolean;
+  filter: (output: TraverseOutput) => boolean;
 }): Generator<GraphQLNamedType> {
   const internal = createTypeTraverserInternal(schema);
   const visited = new Set<string>();

@@ -6,7 +6,7 @@
  */
 
 import { GraphQLSchema } from "graphql";
-import type { ParsedExposeDirectives } from "../types";
+import type { SchemaAnalysis } from "../types";
 import { isFieldExposed } from "../parser/expose-parser";
 import { traverseGraphQLType } from "./type-traverser";
 
@@ -20,8 +20,7 @@ const DEBUG = process.env.DEBUG_REACHABILITY === "1";
  *
  * @param schema - GraphQL スキーマ
  * @param role - 対象ロール
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
- * @param config - 到達可能性解析の設定
+ * @param analysis - @expose ディレクティブの解析結果
  * @yields 到達可能な型名
  *
  * @remarks
@@ -37,11 +36,11 @@ const DEBUG = process.env.DEBUG_REACHABILITY === "1";
 export function* traverseReachableTypes({
   schema,
   role,
-  parsedDirectives,
+  analysis,
 }: {
   schema: GraphQLSchema;
   role: string;
-  parsedDirectives: ParsedExposeDirectives;
+  analysis: SchemaAnalysis;
 }): Generator<string> {
   let discoveredCount = 0;
 
@@ -56,7 +55,7 @@ export function* traverseReachableTypes({
       if (output.source === "outputField") {
         return isFieldExposed(
           schema,
-          parsedDirectives,
+          analysis,
           output.typeName,
           output.fieldName,
           role
@@ -107,10 +106,8 @@ export function* traverseReachableTypes({
  * 型到達可能性を計算する
  *
  * @param schema - GraphQLスキーマ
- * @param entryPoints - エントリーポイント（queries, mutations, types）
  * @param role - 対象ロール
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
- * @param config - 到達可能性解析の設定
+ * @param analysis - @expose ディレクティブの解析結果
  * @returns 到達可能な型名の集合
  *
  * @remarks
@@ -122,9 +119,7 @@ export function* traverseReachableTypes({
 export function computeReachability(
   schema: GraphQLSchema,
   role: string,
-  parsedDirectives: ParsedExposeDirectives
+  analysis: SchemaAnalysis
 ): Set<string> {
-  return new Set<string>(
-    traverseReachableTypes({ schema, role, parsedDirectives })
-  );
+  return new Set<string>(traverseReachableTypes({ schema, role, analysis }));
 }

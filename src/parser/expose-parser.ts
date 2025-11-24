@@ -10,8 +10,13 @@ import {
   isObjectType,
   isInterfaceType,
   isInputObjectType,
+  isIntrospectionType,
 } from "graphql";
-import type { ParsedExposeDirectives } from "../types";
+import type {
+  SchemaAnalysis,
+  TypeLevelExposureInfo,
+  FieldLevelExposureInfo,
+} from "../types";
 
 /**
  * @expose ディレクティブの情報
@@ -23,7 +28,7 @@ export interface ExposeDirective {
 /**
  * パース結果のメモ化用キャッシュ
  */
-const parseCache = new WeakMap<GraphQLSchema, ParsedExposeDirectives>();
+const analysisCache = new WeakMap<GraphQLSchema, SchemaAnalysis>();
 
 /**
  * スキーマから @expose ディレクティブを抽出
@@ -34,89 +39,97 @@ const parseCache = new WeakMap<GraphQLSchema, ParsedExposeDirectives>();
  * @remarks
  * 同一スキーマに対する呼び出しはキャッシュされ、再計算されません。
  */
-export function parseExposeDirectives(
-  schema: GraphQLSchema
-): ParsedExposeDirectives {
+export function parseExposeDirectives(schema: GraphQLSchema): SchemaAnalysis {
   // キャッシュチェック
-  const cached = parseCache.get(schema);
+  const cached = analysisCache.get(schema);
   if (cached) {
     return cached;
   }
 
-  // パース実行
-  const fieldExposeMap = new Map<string, Map<string, string[]>>();
-  const typeDisableAutoExposeSet = new Set<string>();
-  const typeMap = schema.getTypeMap();
+  // Root 型の名前を取得
+  const rootTypeNames = {
+    query: schema.getQueryType()?.name ?? null,
+    mutation: schema.getMutationType()?.name ?? null,
+    subscription: schema.getSubscriptionType()?.name ?? null,
+  };
 
-  for (const [typeName, type] of Object.entries(typeMap)) {
+  // Root 型名のセット（高速検索用）
+  const rootTypeNameSet = new Set<string>(
+    [
+      rootTypeNames.query,
+      rootTypeNames.mutation,
+      rootTypeNames.subscription,
+    ].filter((name): name is string => name !== null)
+  );
+
+  // exposureInfoMap を構築
+  const exposureInfoMap = new Map<string, TypeLevelExposureInfo>();
+
+  for (const [typeName, type] of Object.entries(schema.getTypeMap())) {
     // Introspection 型や組み込み型はスキップ
-    if (typeName.startsWith("__")) continue;
+    if (isIntrospectionType(type)) continue;
+
+    // 型レベルの情報を初期化
+    const isRoot = rootTypeNameSet.has(typeName);
+    let isAutoExposeDisabled = false;
+    const fieldsMap = new Map<string, FieldLevelExposureInfo>();
 
     // Object/Interface 型の処理
     if (isObjectType(type) || isInterfaceType(type)) {
-      parseObjectOrInterface(type, fieldExposeMap, typeDisableAutoExposeSet);
+      // 型レベルの @disableAutoExpose をチェック
+      isAutoExposeDisabled =
+        type.astNode?.directives?.some(
+          (d) => d.name.value === "disableAutoExpose"
+        ) ?? false;
+
+      // フィールドレベルの @expose を取得
+      const fields = type.getFields();
+      for (const [fieldName, field] of Object.entries(fields)) {
+        const fieldTags = extractTagsFromDirectives(
+          field.astNode?.directives ?? []
+        );
+        if (fieldTags !== undefined) {
+          fieldsMap.set(fieldName, {
+            fieldName,
+            tags: fieldTags,
+          });
+        }
+      }
     }
     // InputObject 型の処理
     else if (isInputObjectType(type)) {
-      parseInputObject(type, fieldExposeMap);
+      // InputObject のフィールドレベルの @expose を取得
+      const fields = type.getFields();
+      for (const [fieldName, field] of Object.entries(fields)) {
+        const fieldTags = extractTagsFromDirectives(
+          field.astNode?.directives ?? []
+        );
+        if (fieldTags !== undefined) {
+          fieldsMap.set(fieldName, {
+            fieldName,
+            tags: fieldTags,
+          });
+        }
+      }
     }
+
+    // TypeLevelExposureInfo を作成
+    exposureInfoMap.set(typeName, {
+      typeName,
+      isRootType: isRoot,
+      isAutoExposeDisabled,
+      fields: fieldsMap,
+    });
   }
 
-  // 結果を構築してキャッシュ
-  const result: ParsedExposeDirectives = {
-    fieldExposeMap,
-    typeDisableAutoExposeSet,
+  // SchemaAnalysis を構築してキャッシュ
+  const result: SchemaAnalysis = {
+    rootTypeNames,
+    exposureInfoMap,
   };
 
-  parseCache.set(schema, result);
+  analysisCache.set(schema, result);
   return result;
-}
-
-/**
- * Object/Interface 型の @expose を解析
- */
-function parseObjectOrInterface(
-  type: GraphQLObjectType | GraphQLInterfaceType,
-  fieldExposeMap: Map<string, Map<string, string[]>>,
-  typeDisableAutoExposeSet: Set<string>
-): void {
-  // 型レベルの @disableAutoExpose をチェック
-  const hasDisableAutoExpose = type.astNode?.directives?.some(
-    (d) => d.name.value === "disableAutoExpose"
-  );
-  if (hasDisableAutoExpose) {
-    typeDisableAutoExposeSet.add(type.name);
-  }
-
-  // フィールドレベルの @expose を取得
-  const fields = type.getFields();
-  for (const [fieldName, field] of Object.entries(fields)) {
-    const fieldTags = extractTagsFromDirectives(
-      field.astNode?.directives ?? []
-    );
-    if (fieldTags !== undefined) {
-      setFieldExpose(fieldExposeMap, type.name, fieldName, fieldTags);
-    }
-  }
-}
-
-/**
- * InputObject 型の @expose を解析
- */
-function parseInputObject(
-  type: GraphQLInputObjectType,
-  fieldExposeMap: Map<string, Map<string, string[]>>
-): void {
-  // InputObject のフィールドレベルの @expose を取得
-  const fields = type.getFields();
-  for (const [fieldName, field] of Object.entries(fields)) {
-    const fieldTags = extractTagsFromDirectives(
-      field.astNode?.directives ?? []
-    );
-    if (fieldTags !== undefined) {
-      setFieldExpose(fieldExposeMap, type.name, fieldName, fieldTags);
-    }
-  }
 }
 
 /**
@@ -151,32 +164,6 @@ function extractTagsFromDirectives(
 }
 
 /**
- * フィールドレベルの @expose を設定
- */
-function setFieldExpose(
-  fieldExposeMap: Map<string, Map<string, string[]>>,
-  typeName: string,
-  fieldName: string,
-  tags: string[]
-): void {
-  if (!fieldExposeMap.has(typeName)) {
-    fieldExposeMap.set(typeName, new Map());
-  }
-  fieldExposeMap.get(typeName)!.set(fieldName, tags);
-}
-
-/**
- * 指定された型が Root 型（Query/Mutation/Subscription）かを判定
- */
-function isRootType(schema: GraphQLSchema, typeName: string): boolean {
-  return (
-    typeName === schema.getQueryType()?.name ||
-    typeName === schema.getMutationType()?.name ||
-    typeName === schema.getSubscriptionType()?.name
-  );
-}
-
-/**
  * 指定されたロールがフィールドにアクセス可能かを判定
  *
  * ルール:
@@ -195,23 +182,25 @@ function isRootType(schema: GraphQLSchema, typeName: string): boolean {
  */
 export function isFieldExposed(
   schema: GraphQLSchema,
-  parsed: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   typeName: string,
   fieldName: string,
   role: string
 ): boolean {
+  const exposureInfo = analysis.exposureInfoMap.get(typeName);
+  if (!exposureInfo) {
+    return false;
+  }
+
   // フィールドレベルの @expose をチェック
-  const fieldTags = parsed.fieldExposeMap.get(typeName)?.get(fieldName);
-  if (fieldTags !== undefined) {
-    return fieldTags.includes(role);
+  const field = exposureInfo.fields.get(fieldName);
+  if (field !== undefined) {
+    return field.tags.includes(role);
   }
 
   // @expose がない場合の判定
   // Root 型または @disableAutoExpose が付いている型は除外
-  if (
-    isRootType(schema, typeName) ||
-    parsed.typeDisableAutoExposeSet.has(typeName)
-  ) {
+  if (exposureInfo.isRootType || exposureInfo.isAutoExposeDisabled) {
     return false;
   }
 
@@ -230,7 +219,7 @@ export function isFieldExposed(
  */
 export function getExposedFields(
   schema: GraphQLSchema,
-  parsed: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   typeName: string,
   role: string
 ): string[] {
@@ -243,7 +232,7 @@ export function getExposedFields(
   const exposedFields: string[] = [];
 
   for (const [fieldName] of Object.entries(fields)) {
-    if (isFieldExposed(schema, parsed, typeName, fieldName, role)) {
+    if (isFieldExposed(schema, analysis, typeName, fieldName, role)) {
       exposedFields.push(fieldName);
     }
   }
@@ -254,26 +243,37 @@ export function getExposedFields(
 /**
  * デバッグ用：すべての @expose 情報を出力
  *
- * @param parsed - パース済みの @expose ディレクティブ情報
+ * @param analysis - SchemaAnalysis 情報
  */
-export function debugExposeDirectives(parsed: ParsedExposeDirectives): void {
-  console.log("=== Types with @disableAutoExpose ===");
-  if (parsed.typeDisableAutoExposeSet.size === 0) {
+export function debugExposeDirectives(analysis: SchemaAnalysis): void {
+  console.log("=== Root Types ===");
+  console.log(`  Query: ${analysis.rootTypeNames.query ?? "(none)"}`);
+  console.log(`  Mutation: ${analysis.rootTypeNames.mutation ?? "(none)"}`);
+  console.log(
+    `  Subscription: ${analysis.rootTypeNames.subscription ?? "(none)"}`
+  );
+
+  console.log("\n=== Types with @disableAutoExpose ===");
+  const disabledTypes = Array.from(analysis.exposureInfoMap.values()).filter(
+    (info) => info.isAutoExposeDisabled
+  );
+  if (disabledTypes.length === 0) {
     console.log("  (none)");
   } else {
-    for (const typeName of parsed.typeDisableAutoExposeSet) {
-      console.log(`  ${typeName}`);
+    for (const info of disabledTypes) {
+      console.log(`  ${info.typeName}`);
     }
   }
 
   console.log("\n=== Field-level @expose ===");
-  if (parsed.fieldExposeMap.size === 0) {
-    console.log("  (none)");
-  } else {
-    for (const [typeName, fieldMap] of parsed.fieldExposeMap.entries()) {
-      for (const [fieldName, tags] of fieldMap.entries()) {
-        console.log(`${typeName}.${fieldName}: [${tags.join(", ")}]`);
-      }
+  let hasExposedFields = false;
+  for (const [typeName, typeInfo] of analysis.exposureInfoMap.entries()) {
+    for (const [fieldName, fieldInfo] of typeInfo.fields.entries()) {
+      hasExposedFields = true;
+      console.log(`${typeName}.${fieldName}: [${fieldInfo.tags.join(", ")}]`);
     }
+  }
+  if (!hasExposedFields) {
+    console.log("  (none)");
   }
 }

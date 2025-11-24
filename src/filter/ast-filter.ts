@@ -12,11 +12,10 @@ import type {
   FieldDefinitionNode,
   InputValueDefinitionNode,
 } from "graphql";
-import type { ParsedExposeDirectives, SchemaFilterConfig } from "../types";
+import type { SchemaAnalysis, SchemaFilterConfig } from "../types";
 import {
   isFieldExposedFromAST,
   isInputFieldExposedFromAST,
-  isRootTypeName,
 } from "../utils/ast-utils";
 
 const DEFAULT_CONFIG: SchemaFilterConfig = {
@@ -27,14 +26,14 @@ const DEFAULT_CONFIG: SchemaFilterConfig = {
  * ObjectTypeDefinition のフィールドをフィルタリング
  *
  * @param typeDef - Object 型定義 AST ノード
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
+ * @param analysis - パース済みの @expose ディレクティブ情報
  * @param role - 対象ロール
  * @param config - フィルタリング設定
  * @returns フィルタリング済みのフィールド配列
  */
 function filterObjectFields(
   typeDef: ObjectTypeDefinitionNode,
-  parsedDirectives: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   role: string,
   config: SchemaFilterConfig
 ): readonly FieldDefinitionNode[] | undefined {
@@ -50,7 +49,7 @@ function filterObjectFields(
 
   // exposed-only: @expose ルールに基づいてフィルタリング
   return typeDef.fields.filter((field) =>
-    isFieldExposedFromAST(typeDef.name.value, field, parsedDirectives, role)
+    isFieldExposedFromAST(typeDef.name.value, field, analysis, role)
   );
 }
 
@@ -58,14 +57,14 @@ function filterObjectFields(
  * InterfaceTypeDefinition のフィールドをフィルタリング
  *
  * @param typeDef - Interface 型定義 AST ノード
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
+ * @param analysis - パース済みの @expose ディレクティブ情報
  * @param role - 対象ロール
  * @param config - フィルタリング設定
  * @returns フィルタリング済みのフィールド配列
  */
 function filterInterfaceFields(
   typeDef: InterfaceTypeDefinitionNode,
-  parsedDirectives: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   role: string,
   config: SchemaFilterConfig
 ): readonly FieldDefinitionNode[] | undefined {
@@ -81,7 +80,7 @@ function filterInterfaceFields(
 
   // exposed-only: @expose ルールに基づいてフィルタリング
   return typeDef.fields.filter((field) =>
-    isFieldExposedFromAST(typeDef.name.value, field, parsedDirectives, role)
+    isFieldExposedFromAST(typeDef.name.value, field, analysis, role)
   );
 }
 
@@ -89,7 +88,7 @@ function filterInterfaceFields(
  * InputObjectTypeDefinition のフィールドをフィルタリング
  *
  * @param typeDef - InputObject 型定義 AST ノード
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
+ * @param analysis - パース済みの @expose ディレクティブ情報
  * @param role - 対象ロール
  * @returns フィルタリング済みのフィールド配列
  *
@@ -98,7 +97,7 @@ function filterInterfaceFields(
  */
 function filterInputObjectFields(
   typeDef: InputObjectTypeDefinitionNode,
-  parsedDirectives: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   role: string
 ): readonly InputValueDefinitionNode[] | undefined {
   if (!typeDef.fields) {
@@ -109,7 +108,7 @@ function filterInputObjectFields(
     isInputFieldExposedFromAST(
       typeDef.name.value,
       field,
-      parsedDirectives,
+      analysis,
       role
     )
   );
@@ -119,7 +118,7 @@ function filterInputObjectFields(
  * ObjectTypeDefinition をフィルタリング
  *
  * @param typeDef - Object 型定義 AST ノード
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
+ * @param analysis - パース済みの @expose ディレクティブ情報
  * @param role - 対象ロール
  * @param config - フィルタリング設定
  * @param reachableTypes - 到達可能な型名の集合
@@ -127,14 +126,14 @@ function filterInputObjectFields(
  */
 function filterObjectTypeDefinition(
   typeDef: ObjectTypeDefinitionNode,
-  parsedDirectives: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   role: string,
   config: SchemaFilterConfig,
   reachableTypes: Set<string>
 ): ObjectTypeDefinitionNode | null {
   const filteredFields = filterObjectFields(
     typeDef,
-    parsedDirectives,
+    analysis,
     role,
     config
   );
@@ -160,7 +159,7 @@ function filterObjectTypeDefinition(
  * InterfaceTypeDefinition をフィルタリング
  *
  * @param typeDef - Interface 型定義 AST ノード
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
+ * @param analysis - パース済みの @expose ディレクティブ情報
  * @param role - 対象ロール
  * @param config - フィルタリング設定
  * @param reachableTypes - 到達可能な型名の集合
@@ -168,14 +167,14 @@ function filterObjectTypeDefinition(
  */
 function filterInterfaceTypeDefinition(
   typeDef: InterfaceTypeDefinitionNode,
-  parsedDirectives: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   role: string,
   config: SchemaFilterConfig,
   reachableTypes: Set<string>
 ): InterfaceTypeDefinitionNode | null {
   const filteredFields = filterInterfaceFields(
     typeDef,
-    parsedDirectives,
+    analysis,
     role,
     config
   );
@@ -201,18 +200,18 @@ function filterInterfaceTypeDefinition(
  * InputObjectTypeDefinition をフィルタリング
  *
  * @param typeDef - InputObject 型定義 AST ノード
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
+ * @param analysis - パース済みの @expose ディレクティブ情報
  * @param role - 対象ロール
  * @returns フィルタリング済みの InputObject 型定義、またはフィールドが空の場合 null
  */
 function filterInputObjectTypeDefinition(
   typeDef: InputObjectTypeDefinitionNode,
-  parsedDirectives: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   role: string
 ): InputObjectTypeDefinitionNode | null {
   const filteredFields = filterInputObjectFields(
     typeDef,
-    parsedDirectives,
+    analysis,
     role
   );
 
@@ -267,7 +266,7 @@ function filterUnionTypeDefinition(
  * @param documentNode - GraphQL AST DocumentNode
  * @param role - 対象ロール
  * @param reachableTypes - 到達可能な型名の集合
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
+ * @param analysis - パース済みの @expose ディレクティブ情報
  * @param config - フィルタリング設定
  * @returns フィルタリング済みの DefinitionNode 配列
  *
@@ -282,7 +281,7 @@ export function filterDefinitionsAST(
   documentNode: DocumentNode,
   role: string,
   reachableTypes: Set<string>,
-  parsedDirectives: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   config?: Partial<SchemaFilterConfig>
 ): DefinitionNode[] {
   const finalConfig: SchemaFilterConfig = { ...DEFAULT_CONFIG, ...config };
@@ -312,7 +311,10 @@ export function filterDefinitionsAST(
       }
 
       // Root 型（Query/Mutation/Subscription）は常に含める（フィールドが空でも）
-      const isRootType = isRootTypeName(def.name.value);
+      const isRootType =
+        def.name.value === analysis.rootTypeNames.query ||
+        def.name.value === analysis.rootTypeNames.mutation ||
+        def.name.value === analysis.rootTypeNames.subscription;
 
       // 到達不可能な型は除外（ただし Root 型は除く）
       if (!isRootType && !reachableTypes.has(def.name.value)) {
@@ -323,7 +325,7 @@ export function filterDefinitionsAST(
       if (def.kind === "ObjectTypeDefinition") {
         const filtered = filterObjectTypeDefinition(
           def,
-          parsedDirectives,
+          analysis,
           role,
           finalConfig,
           reachableTypes
@@ -344,7 +346,7 @@ export function filterDefinitionsAST(
       if (def.kind === "InterfaceTypeDefinition") {
         return filterInterfaceTypeDefinition(
           def,
-          parsedDirectives,
+          analysis,
           role,
           finalConfig,
           reachableTypes
@@ -353,7 +355,7 @@ export function filterDefinitionsAST(
 
       // InputObject 型のフィールドフィルタリング
       if (def.kind === "InputObjectTypeDefinition") {
-        return filterInputObjectTypeDefinition(def, parsedDirectives, role);
+        return filterInputObjectTypeDefinition(def, analysis, role);
       }
 
       // Union 型のメンバーフィルタリング

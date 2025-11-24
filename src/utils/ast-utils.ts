@@ -7,7 +7,7 @@ import type {
   FieldDefinitionNode,
   InputValueDefinitionNode,
 } from "graphql";
-import type { ParsedExposeDirectives } from "../types";
+import type { SchemaAnalysis } from "../types";
 
 /**
  * TypeNode から型名を取得（NonNull/List を unwrap）
@@ -28,25 +28,11 @@ export function getTypeNameFromTypeNode(typeNode: TypeNode): string {
 }
 
 /**
- * 型名が Root 型（Query/Mutation/Subscription）かを判定
- *
- * @param typeName - 型名
- * @returns Root 型の場合 true
- */
-export function isRootTypeName(typeName: string): boolean {
-  return (
-    typeName === "Query" ||
-    typeName === "Mutation" ||
-    typeName === "Subscription"
-  );
-}
-
-/**
  * AST FieldDefinitionNode から指定されたロールがフィールドにアクセス可能かを判定
  *
  * @param typeName - 親型の名前
  * @param field - フィールド定義 AST ノード
- * @param parsed - パース済みの @expose ディレクティブ情報
+ * @param analysis - SchemaAnalysis 情報
  * @param role - ロール名
  * @returns フィールドが公開されている場合 true
  *
@@ -61,21 +47,23 @@ export function isRootTypeName(typeName: string): boolean {
 export function isFieldExposedFromAST(
   typeName: string,
   field: FieldDefinitionNode,
-  parsed: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   role: string
 ): boolean {
+  const exposureInfo = analysis.exposureInfoMap.get(typeName);
+  if (!exposureInfo) {
+    return false;
+  }
+
   // フィールドレベルの @expose をチェック
-  const fieldTags = parsed.fieldExposeMap.get(typeName)?.get(field.name.value);
-  if (fieldTags !== undefined) {
-    return fieldTags.includes(role);
+  const fieldInfo = exposureInfo.fields.get(field.name.value);
+  if (fieldInfo !== undefined) {
+    return fieldInfo.tags.includes(role);
   }
 
   // @expose がない場合の判定
   // Root 型または @disableAutoExpose が付いている型は除外
-  if (
-    isRootTypeName(typeName) ||
-    parsed.typeDisableAutoExposeSet.has(typeName)
-  ) {
+  if (exposureInfo.isRootType || exposureInfo.isAutoExposeDisabled) {
     return false;
   }
 
@@ -89,7 +77,7 @@ export function isFieldExposedFromAST(
  *
  * @param typeName - 親型の名前
  * @param field - InputObject フィールド定義 AST ノード
- * @param parsed - パース済みの @expose ディレクティブ情報
+ * @param analysis - SchemaAnalysis 情報
  * @param role - ロール名
  * @returns フィールドが公開されている場合 true
  *
@@ -101,15 +89,20 @@ export function isFieldExposedFromAST(
 export function isInputFieldExposedFromAST(
   typeName: string,
   field: InputValueDefinitionNode,
-  parsed: ParsedExposeDirectives,
+  analysis: SchemaAnalysis,
   role: string
 ): boolean {
-  // フィールドレベルの @expose をチェック
-  const fieldTags = parsed.fieldExposeMap.get(typeName)?.get(field.name.value);
+  const exposureInfo = analysis.exposureInfoMap.get(typeName);
+  if (!exposureInfo) {
+    // 型情報がない場合、デフォルトで含める（寛容モード）
+    return true;
+  }
 
-  if (fieldTags !== undefined) {
+  // フィールドレベルの @expose をチェック
+  const fieldInfo = exposureInfo.fields.get(field.name.value);
+  if (fieldInfo !== undefined) {
     // @expose がある場合、ロールが含まれているかチェック
-    return fieldTags.includes(role);
+    return fieldInfo.tags.includes(role);
   }
 
   // @expose がない場合はデフォルトで含める（寛容モード）

@@ -30,7 +30,6 @@ export { filterDefinitionsAST } from "./filter/ast-filter";
 // AST ユーティリティ
 export {
   getTypeNameFromTypeNode,
-  isRootTypeName,
   isFieldExposedFromAST,
   isInputFieldExposedFromAST,
 } from "./utils/ast-utils";
@@ -40,7 +39,9 @@ export { isBuiltInScalar } from "./utils/type-utils";
 
 // 型定義
 export type {
-  ParsedExposeDirectives,
+  SchemaAnalysis,
+  TypeLevelExposureInfo,
+  FieldLevelExposureInfo,
   SchemaFilterConfig,
   FilterSchemaOptions,
 } from "./types";

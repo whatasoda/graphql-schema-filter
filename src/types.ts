@@ -3,22 +3,35 @@
  */
 
 /**
- * @expose ディレクティブのパース結果
+ * 型レベルの exposure 情報
  */
-export interface ParsedExposeDirectives {
-  /**
-   * フィールドレベルの公開設定
-   * Map<型名, Map<フィールド名, タグ配列>>
-   */
-  readonly fieldExposeMap: ReadonlyMap<
-    string,
-    ReadonlyMap<string, readonly string[]>
-  >;
+export interface TypeLevelExposureInfo {
+  readonly typeName: string;
+  readonly isRootType: boolean;
+  readonly isAutoExposeDisabled: boolean;
+  readonly fields: ReadonlyMap<string, FieldLevelExposureInfo>;
+}
 
-  /**
-   * @disableAutoExpose が指定された型の集合
-   */
-  readonly typeDisableAutoExposeSet: ReadonlySet<string>;
+/**
+ * フィールドレベルの exposure 情報
+ */
+export interface FieldLevelExposureInfo {
+  readonly fieldName: string;
+  readonly tags: readonly string[];
+}
+
+/**
+ * スキーマ解析結果
+ * @expose ディレクティブのパース結果と型情報を含む
+ */
+export interface SchemaAnalysis {
+  readonly rootTypeNames: {
+    readonly query: string | null;
+    readonly mutation: string | null;
+    readonly subscription: string | null;
+  };
+
+  readonly exposureInfoMap: ReadonlyMap<string, TypeLevelExposureInfo>;
 }
 
 /**

@@ -1,9 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import {
-  createTypeTraverserInternal,
-  traverseGraphQLType,
-} from "./type-traverser";
+import { createTypeTraverserInternal, traverseGraphQLType } from "./traverse";
 
 describe("createTypeTraverserInternal", () => {
   describe("traverseObject", () => {

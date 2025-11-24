@@ -7,7 +7,7 @@
 
 import { GraphQLNamedType, GraphQLSchema, NamedTypeNode } from "graphql";
 import type { SchemaAnalysis } from "../types";
-import { traverseGraphQLType } from "./type-traverser";
+import { traverseGraphQLType } from "./traverse";
 
 /**
  * DEBUG_REACHABILITY=1 でデバッグログを有効化

@@ -8,28 +8,13 @@ import {
   isInterfaceType,
   isInputObjectType,
   isIntrospectionType,
-  GraphQLObjectType,
-  GraphQLInputField,
-  GraphQLField,
-  GraphQLInterfaceType,
-  GraphQLInputObjectType,
 } from "graphql";
-import type {
-  SchemaAnalysis,
-  TypeLevelExposureInfo,
-  FieldLevelExposureInfo,
-} from "../types";
+import type { SchemaAnalysis, TypeLevelExposureInfo } from "../types";
 import {
-  extractExposureTags,
-  hasDisableAutoExposeDirective,
-} from "../analysis/directive";
-
-/**
- * @expose ディレクティブの情報
- */
-export interface ExposeDirective {
-  tags: string[];
-}
+  createExposureInfoFromObjectType,
+  createExposureInfoFromInterfaceType,
+  createExposureInfoFromInputObjectType,
+} from "./exposure-info";
 
 /**
  * スキーマから @expose ディレクティブを解析
@@ -80,77 +65,6 @@ export function createSchemaAnalysis(schema: GraphQLSchema): SchemaAnalysis {
       exposureInfoList.map((info) => [info.typeName, info])
     ),
   };
-}
-
-function createExposureInfoFromObjectType({
-  type,
-  rootTypeNameSet,
-}: {
-  type: GraphQLObjectType;
-  rootTypeNameSet: Set<string>;
-}): TypeLevelExposureInfo | null {
-  return {
-    typeName: type.name,
-    isRootType: rootTypeNameSet.has(type.name),
-    isAutoExposeDisabled: hasDisableAutoExposeDirective({
-      directives: type.astNode?.directives,
-    }),
-    fields: createFieldLevelExposureInfoMapFromFieldLike({
-      fields: Object.values(type.getFields()),
-    }),
-  };
-}
-
-function createExposureInfoFromInterfaceType({
-  type,
-}: {
-  type: GraphQLInterfaceType;
-}): TypeLevelExposureInfo | null {
-  return {
-    typeName: type.name,
-    // NOTE: Interface types are never root types
-    isRootType: false,
-    // NOTE: Interface types are never auto-exposed
-    isAutoExposeDisabled: false,
-    fields: createFieldLevelExposureInfoMapFromFieldLike({
-      fields: Object.values(type.getFields()),
-    }),
-  };
-}
-
-function createExposureInfoFromInputObjectType({
-  type,
-}: {
-  type: GraphQLInputObjectType;
-}): TypeLevelExposureInfo | null {
-  return {
-    typeName: type.name,
-    // NOTE: InputObject types are never root types
-    isRootType: false,
-    // NOTE: InputObject types are never auto-exposed
-    isAutoExposeDisabled: false,
-    fields: createFieldLevelExposureInfoMapFromFieldLike({
-      fields: Object.values(type.getFields()),
-    }),
-  };
-}
-
-function createFieldLevelExposureInfoMapFromFieldLike({
-  fields,
-}: {
-  fields: GraphQLInputField[] | GraphQLField<unknown, unknown>[];
-}): Map<string, FieldLevelExposureInfo> {
-  return new Map(
-    fields
-      .flatMap<FieldLevelExposureInfo>((field) => {
-        const fieldTags = extractExposureTags({
-          directives: field.astNode?.directives,
-        });
-
-        return fieldTags ? [{ fieldName: field.name, tags: fieldTags }] : [];
-      })
-      .map((fieldInfo) => [fieldInfo.fieldName, fieldInfo])
-  );
 }
 
 /**

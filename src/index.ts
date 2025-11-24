@@ -14,13 +14,13 @@ export { filterSchemaForRole } from "./filter/filter-schema";
 export {
   createSchemaAnalysis,
   debugSchemaAnalysis,
-} from "./parser/expose-parser";
+} from "./analysis/expose-parser";
 
 // Reachability関連の純粋関数
 export {
   computeReachability,
   traverseReachableTypes,
-} from "./analyzer/reachability";
+} from "./reachability/reachability";
 
 // AST Filter関連の純粋関数
 export { filterDefinitionsAST } from "./filter/ast-filter";

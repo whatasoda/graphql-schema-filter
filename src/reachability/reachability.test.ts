@@ -5,7 +5,7 @@ import {
   isFieldExposed,
   traverseReachableTypes,
 } from "./reachability";
-import { createSchemaAnalysis } from "../parser/expose-parser";
+import { createSchemaAnalysis } from "../analysis/expose-parser";
 
 describe("isFieldExposed", () => {
   test("should return true for fields with matching role tag", () => {

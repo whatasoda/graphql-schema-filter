@@ -5,11 +5,7 @@
  * 推移的に参照されるすべての型を収集する
  */
 
-import {
-  GraphQLSchema,
-  GraphQLNamedType,
-  GraphQLObjectType,
-} from "graphql";
+import { GraphQLSchema, GraphQLNamedType, GraphQLObjectType } from "graphql";
 import type {
   EntryPoints,
   ReachabilityConfig,
@@ -23,84 +19,16 @@ import {
   isIntrospectionType,
 } from "../utils/type-utils";
 import { isFieldExposed } from "../parser/expose-parser";
+import { traverseGraphQLNamedType } from "./traverse";
 
 const DEFAULT_CONFIG: ReachabilityConfig = {
   includeInterfaceImplementations: true,
-  includeReferenced: "all",
 };
 
 /**
  * DEBUG_REACHABILITY=1 でデバッグログを有効化
  */
 const DEBUG = process.env.DEBUG_REACHABILITY === "1";
-
-/**
- * 指定された型から参照される型を yield する generator
- *
- * @param type - 探索対象の型
- * @param schema - GraphQL スキーマ
- * @param role - 対象ロール（フィールド公開判定に使用）
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
- * @param config - 到達可能性解析の設定
- * @yields 型から参照される GraphQL 型
- */
-function* yieldReferencedTypes(
-  type: GraphQLNamedType,
-  schema: GraphQLSchema,
-  role: string,
-  parsedDirectives: ParsedExposeDirectives,
-  config: ReachabilityConfig
-): Generator<GraphQLNamedType> {
-  if (config.includeReferenced === "none") {
-    // 参照を辿らない設定の場合は何も yield しない
-    return;
-  }
-
-  if (TypeKind.isObject(type) || TypeKind.isInterface(type)) {
-    // Object/Interface の場合
-    const fields = type.getFields();
-
-    for (const field of Object.values(fields)) {
-      // フィールドが role に公開されているかチェック
-      if (!isFieldExposed(schema, parsedDirectives, type.name, field.name, role)) {
-        continue; // 公開されていないフィールドはスキップ
-      }
-
-      // 戻り値の型を yield
-      if (config.includeReferenced === "all") {
-        const returnType = getNamedType(field.type);
-        yield returnType;
-      }
-
-      // 引数の型を yield
-      const argTypes = getArgumentTypes(field);
-      for (const argType of argTypes) {
-        yield argType;
-      }
-    }
-
-    // Interface の場合、実装型も yield
-    if (TypeKind.isInterface(type) && config.includeInterfaceImplementations) {
-      const implementations = schema.getPossibleTypes(type);
-      for (const implType of implementations) {
-        yield implType;
-      }
-    }
-  } else if (TypeKind.isUnion(type)) {
-    // Union の場合
-    const possibleTypes = schema.getPossibleTypes(type);
-    for (const memberType of possibleTypes) {
-      yield memberType;
-    }
-  } else if (TypeKind.isInputObject(type)) {
-    // InputObject の場合
-    const fieldTypes = getInputFieldTypes(type);
-    for (const fieldType of fieldTypes) {
-      yield fieldType;
-    }
-  }
-  // Scalar/Enum は参照を持たないので何も yield しない
-}
 
 /**
  * ルート型（Query/Mutation）を取得
@@ -225,57 +153,64 @@ export function* traverseReachableTypes(
 
   if (DEBUG) {
     const entryPointCount =
-      entryPoints.queries.length + entryPoints.mutations.length + entryPoints.types.length;
-    console.log(`[Reachability] Starting traversal with ${entryPointCount} entry points`);
+      entryPoints.queries.length +
+      entryPoints.mutations.length +
+      entryPoints.types.length;
+    console.log(
+      `[Reachability] Starting traversal with ${entryPointCount} entry points`
+    );
     console.log(`[Reachability] Initial queue size: ${workQueue.length}`);
   }
 
   let discoveredCount = 0;
 
+  const generator = traverseGraphQLNamedType(schema, workQueue, (output) => {
+    if (output.source === "outputField") {
+      return isFieldExposed(
+        schema,
+        parsedDirectives,
+        output.parent.name,
+        output.fieldName,
+        role
+      );
+    }
+
+    if (output.source === "implements") {
+      return true;
+    }
+
+    if (output.source === "interfaceImplementation") {
+      return config.includeInterfaceImplementations;
+    }
+
+    if (output.source === "unionMember") {
+      return true;
+    }
+
+    if (output.source === "inputField") {
+      return true;
+    }
+
+    throw new Error(`Unsupported output source: ${output satisfies never}`);
+  });
+
   // BFS でクロージャを計算
-  while (workQueue.length > 0) {
-    const type = workQueue.shift()!;
-
-    // すでに訪問済みならスキップ
-    if (visited.has(type.name)) {
-      continue;
-    }
-
-    // Introspection 型はスキップ
-    if (isIntrospectionType(type)) {
-      continue;
-    }
-
-    // 到達可能な型として記録し、yield
-    visited.add(type.name);
+  for (const type of generator) {
     discoveredCount++;
 
     if (DEBUG) {
-      console.log(`[Reachability] Discovered type #${discoveredCount}: ${type.name}`);
+      console.log(
+        `[Reachability] Discovered type #${discoveredCount}: ${type.name}`
+      );
     }
 
     yield type.name;
-
-    // 型から参照される型を探索
-    const referencedTypes = [...yieldReferencedTypes(
-      type,
-      schema,
-      role,
-      parsedDirectives,
-      config
-    )];
-
-    if (DEBUG && referencedTypes.length > 0) {
-      console.log(`[Reachability]   → References ${referencedTypes.length} types: ${referencedTypes.map(t => t.name).join(", ")}`);
-    }
-
-    for (const referencedType of referencedTypes) {
-      addToQueue(referencedType);
-    }
   }
 
   if (DEBUG) {
-    console.log(`[Reachability] Traversal complete. Total types discovered: ${discoveredCount}`);
+    console.log(
+      `[Reachability] Traversal complete. Total types discovered: ${discoveredCount}`
+    );
   }
 }
 

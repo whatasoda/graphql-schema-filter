@@ -39,14 +39,6 @@ export interface ReachabilityConfig {
    * @default true
    */
   includeInterfaceImplementations: boolean;
-
-  /**
-   * 参照型の含め方
-   * - 'all': すべての参照型を含める（既定）
-   * - 'args-only': 引数型のみ含め、戻り値はシードの直近のみ
-   * - 'none': シードのフィールドのみ（参照を辿らない）
-   */
-  includeReferenced: "all" | "args-only" | "none";
 }
 
 /**

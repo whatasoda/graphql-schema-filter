@@ -332,49 +332,6 @@ describe("computeReachability", () => {
     expect(reachableTypes.has("SettingsInput")).toBe(true);
   });
 
-  test("should respect includeReferenced config option", () => {
-    const schema = buildSchema(`
-      type Query {
-        user: User
-      }
-
-      type User {
-        id: ID!
-        posts: [Post!]!
-      }
-
-      type Post {
-        id: ID!
-        title: String!
-      }
-    `);
-
-    const entryPoints: EntryPoints = {
-      queries: ["user"],
-      mutations: [],
-      types: [],
-    };
-
-    const parsedDirectives = parseExposeDirectives(schema);
-
-    // With includeReferenced: 'none'
-    const reachableTypesNone = computeReachability(schema, entryPoints, "test", parsedDirectives, {
-      includeReferenced: "none",
-    });
-
-    // Should only include User (entry point return type) and scalars
-    expect(reachableTypesNone.has("User")).toBe(true);
-    expect(reachableTypesNone.has("Post")).toBe(false);
-
-    // With includeReferenced: 'all' (default)
-    const reachableTypesAll = computeReachability(schema, entryPoints, "test", parsedDirectives, {
-      includeReferenced: "all",
-    });
-
-    // Should include both User and Post
-    expect(reachableTypesAll.has("User")).toBe(true);
-    expect(reachableTypesAll.has("Post")).toBe(true);
-  });
 
   test("should handle empty entry points", () => {
     const schema = buildSchema(`
@@ -497,7 +454,7 @@ describe("traverseReachableTypes (generator)", () => {
       entryPoints,
       "test",
       parsedDirectives,
-      { includeInterfaceImplementations: true, includeReferenced: "all" }
+      { includeInterfaceImplementations: true }
     );
 
     // Take only the first 2 types
@@ -552,7 +509,7 @@ describe("traverseReachableTypes (generator)", () => {
       entryPoints,
       "test",
       parsedDirectives,
-      { includeInterfaceImplementations: true, includeReferenced: "all" }
+      { includeInterfaceImplementations: true }
     )) {
       generatorResult.add(typeName);
     }
@@ -583,7 +540,7 @@ describe("traverseReachableTypes (generator)", () => {
         entryPoints,
         "test",
         parsedDirectives,
-        { includeInterfaceImplementations: true, includeReferenced: "all" }
+        { includeInterfaceImplementations: true }
       ),
     ];
 
@@ -613,7 +570,7 @@ describe("traverseReachableTypes (generator)", () => {
         entryPoints,
         "test",
         parsedDirectives,
-        { includeInterfaceImplementations: true, includeReferenced: "all" }
+        { includeInterfaceImplementations: true }
       ),
     ];
 

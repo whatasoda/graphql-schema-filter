@@ -49,7 +49,6 @@ async function main() {
   console.log('🔍 Filtering for "readonly" role...\n');
   const readonlySchema = await filterSchemaForRole(schema, {
     role: "readonly",
-    autoInferEntryPoints: true,
   });
 
   console.log("📋 Filtered Schema (readonly):\n");
@@ -60,7 +59,6 @@ async function main() {
   console.log('🔍 Filtering for "admin" role...\n');
   const adminSchema = await filterSchemaForRole(schema, {
     role: "admin",
-    autoInferEntryPoints: true,
   });
 
   console.log("📋 Filtered Schema (admin):\n");

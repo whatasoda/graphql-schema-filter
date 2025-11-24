@@ -1,6 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import { createTypeTraverserInternal, traverseGraphQLNamedType } from "./traverse";
+import {
+  createTypeTraverserInternal,
+  traverseGraphQLType,
+} from "./type-traverser";
 
 describe("createTypeTraverserInternal", () => {
   describe("traverseObject", () => {
@@ -35,7 +38,7 @@ describe("createTypeTraverserInternal", () => {
       const idOutput = outputs.find((o) => o.fieldName === "id");
       expect(idOutput).toBeDefined();
       expect(idOutput?.source).toBe("outputField");
-      expect(idOutput?.type.name).toBe("ID");
+      expect(idOutput?.field.name).toBe("ID");
       expect(idOutput?.parent.name).toBe("User");
       expect(idOutput?.children.length).toBe(1); // Return type only
 
@@ -43,7 +46,7 @@ describe("createTypeTraverserInternal", () => {
       const postsOutput = outputs.find((o) => o.fieldName === "posts");
       expect(postsOutput).toBeDefined();
       expect(postsOutput?.source).toBe("outputField");
-      expect(postsOutput?.type.name).toBe("Post");
+      expect(postsOutput?.field.name).toBe("Post");
       expect(postsOutput?.children.length).toBe(2); // Return type + argument type
       expect(postsOutput?.children.map((c) => c.name)).toContain("Int");
     });
@@ -71,7 +74,9 @@ describe("createTypeTraverserInternal", () => {
       const outputs = [...traverser.traverseObject(userType as any)];
 
       // Should have output fields + implements
-      const implementsOutputs = outputs.filter((o) => o.source === "implements");
+      const implementsOutputs = outputs.filter(
+        (o) => o.source === "implements"
+      );
       expect(implementsOutputs.length).toBe(1);
       expect(implementsOutputs[0].type.name).toBe("Node");
     });
@@ -113,7 +118,7 @@ describe("createTypeTraverserInternal", () => {
       // Check field output
       const idOutput = fieldOutputs.find((o) => o.fieldName === "id");
       expect(idOutput).toBeDefined();
-      expect(idOutput?.type.name).toBe("ID");
+      expect(idOutput?.fieldType.name).toBe("ID");
     });
 
     test("should yield interface implementations", () => {
@@ -149,7 +154,9 @@ describe("createTypeTraverserInternal", () => {
       );
       expect(implOutputs.length).toBe(2);
 
-      const implNames = implOutputs.map((o) => o.type.name).sort();
+      const implNames = implOutputs
+        .map((o) => o.implementationType.name)
+        .sort();
       expect(implNames).toEqual(["Post", "User"]);
 
       // Check structure
@@ -188,12 +195,12 @@ describe("createTypeTraverserInternal", () => {
       expect(outputs.length).toBe(2);
       expect(outputs.every((o) => o.source === "unionMember")).toBe(true);
 
-      const memberNames = outputs.map((o) => o.type.name).sort();
+      const memberNames = outputs.map((o) => o.field.name).sort();
       expect(memberNames).toEqual(["Post", "User"]);
 
       // Check children
       expect(outputs[0].children.length).toBe(1);
-      expect(outputs[0].children[0].name).toBe(outputs[0].type.name);
+      expect(outputs[0].children[0].name).toBe(outputs[0].field.name);
     });
   });
 
@@ -233,7 +240,7 @@ describe("createTypeTraverserInternal", () => {
       expect(outputs[0].parent.name).toBe("CreateUserInput");
 
       // Check types
-      const typeNames = outputs.map((o) => o.type.name).sort();
+      const typeNames = outputs.map((o) => o.field.name).sort();
       expect(typeNames).toEqual(["Int", "String", "String"]);
     });
 
@@ -269,7 +276,7 @@ describe("createTypeTraverserInternal", () => {
       // Check nested input object
       const profileOutput = outputs.find((o) => o.fieldName === "profile");
       expect(profileOutput).toBeDefined();
-      expect(profileOutput?.type.name).toBe("ProfileInput");
+      expect(profileOutput?.field.name).toBe("ProfileInput");
     });
   });
 
@@ -337,7 +344,11 @@ describe("createTypeTraverserInternal", () => {
       const userType = schema.getType("User");
       const userOutputs = [...traverser.traverseNamedType(userType as any)];
       expect(userOutputs.length).toBeGreaterThan(0);
-      expect(userOutputs.every((o) => o.source === "outputField" || o.source === "implements")).toBe(true);
+      expect(
+        userOutputs.every(
+          (o) => o.source === "outputField" || o.source === "implements"
+        )
+      ).toBe(true);
 
       // Test Union type
       const searchType = schema.getType("SearchResult");
@@ -353,7 +364,7 @@ describe("createTypeTraverserInternal", () => {
   });
 });
 
-describe("traverseGraphQLNamedType", () => {
+describe("traverseGraphQLType", () => {
   test("should traverse reachable types from entry points", () => {
     const schema = buildSchema(`
       type Query {
@@ -375,7 +386,13 @@ describe("traverseGraphQLNamedType", () => {
     const userType = schema.getType("User");
     expect(userType).toBeDefined();
 
-    const types = [...traverseGraphQLNamedType(schema, [userType as any], () => true)];
+    const types = [
+      ...traverseGraphQLType({
+        schema,
+        entrypoints: [userType as any],
+        filter: () => true,
+      }),
+    ];
 
     // Should include User, Post, and scalars
     const typeNames = types.map((t) => t.name);
@@ -403,11 +420,18 @@ describe("traverseGraphQLNamedType", () => {
 
     // Filter out "secret" field
     const types = [
-      ...traverseGraphQLNamedType(schema, [userType as any], (output) => {
-        if (output.source === "outputField" && output.fieldName === "secret") {
-          return false;
-        }
-        return true;
+      ...traverseGraphQLType({
+        schema,
+        entrypoints: [userType as any],
+        filter: (output) => {
+          if (
+            output.source === "outputField" &&
+            output.fieldName === "secret"
+          ) {
+            return false;
+          }
+          return true;
+        },
       }),
     ];
 
@@ -434,7 +458,13 @@ describe("traverseGraphQLNamedType", () => {
     const userType = schema.getType("User");
     expect(userType).toBeDefined();
 
-    const types = [...traverseGraphQLNamedType(schema, [userType as any], () => true)];
+    const types = [
+      ...traverseGraphQLType({
+        schema,
+        entrypoints: [userType as any],
+        filter: () => true,
+      }),
+    ];
 
     // Count how many times "User" appears
     const userCount = types.filter((t) => t.name === "User").length;
@@ -460,7 +490,11 @@ describe("traverseGraphQLNamedType", () => {
     expect(schemaType).toBeDefined();
 
     const types = [
-      ...traverseGraphQLNamedType(schema, [userType as any, schemaType as any], () => true),
+      ...traverseGraphQLType({
+        schema,
+        entrypoints: [userType as any, schemaType as any],
+        filter: () => true,
+      }),
     ];
 
     // Should not include introspection types
@@ -493,7 +527,11 @@ describe("traverseGraphQLNamedType", () => {
     expect(postType).toBeDefined();
 
     const types = [
-      ...traverseGraphQLNamedType(schema, [userType as any, postType as any], () => true),
+      ...traverseGraphQLType({
+        schema,
+        entrypoints: [userType as any, postType as any],
+        filter: () => true,
+      }),
     ];
 
     // Should include both User and Post
@@ -509,7 +547,9 @@ describe("traverseGraphQLNamedType", () => {
       }
     `);
 
-    const types = [...traverseGraphQLNamedType(schema, [], () => true)];
+    const types = [
+      ...traverseGraphQLType({ schema, entrypoints: [], filter: () => true }),
+    ];
 
     // Should yield no types
     expect(types.length).toBe(0);
@@ -541,11 +581,15 @@ describe("traverseGraphQLNamedType", () => {
 
     // Filter that blocks interface implementations
     const typesFiltered = [
-      ...traverseGraphQLNamedType(schema, [nodeType as any], (output) => {
-        if (output.source === "interfaceImplementation") {
-          return false;
-        }
-        return true;
+      ...traverseGraphQLType({
+        schema,
+        entrypoints: [nodeType as any],
+        filter: (output) => {
+          if (output.source === "interfaceImplementation") {
+            return false;
+          }
+          return true;
+        },
       }),
     ];
 
@@ -556,7 +600,11 @@ describe("traverseGraphQLNamedType", () => {
 
     // Filter that allows interface implementations
     const typesAllowed = [
-      ...traverseGraphQLNamedType(schema, [nodeType as any], () => true),
+      ...traverseGraphQLType({
+        schema,
+        entrypoints: [nodeType as any],
+        filter: () => true,
+      }),
     ];
 
     const allowedNames = typesAllowed.map((t) => t.name);

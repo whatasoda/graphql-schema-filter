@@ -3,12 +3,7 @@
  */
 
 import {
-  GraphQLType,
   GraphQLNamedType,
-  GraphQLNonNull,
-  GraphQLList,
-  isNonNullType,
-  isListType,
   isObjectType,
   isInterfaceType,
   isUnionType,
@@ -21,28 +16,7 @@ import {
   GraphQLInputObjectType,
   GraphQLEnumType,
   GraphQLScalarType,
-  GraphQLField,
-  GraphQLInputField,
 } from "graphql";
-
-/**
- * NonNull/List ラッパーを剥いで、内部の Named Type を取得
- *
- * 例:
- * - [User!]! → User
- * - [String]! → String
- * - User! → User
- */
-export function getNamedType(type: GraphQLType): GraphQLNamedType {
-  let currentType: GraphQLType = type;
-
-  // NonNull と List を再帰的に剥いでいく
-  while (isNonNullType(currentType) || isListType(currentType)) {
-    currentType = currentType.ofType;
-  }
-
-  return currentType as GraphQLNamedType;
-}
 
 /**
  * 型の種類を判定するヘルパー関数群
@@ -60,32 +34,6 @@ export const TypeKind = {
   isScalar: (type: GraphQLNamedType): type is GraphQLScalarType =>
     isScalarType(type),
 } as const;
-
-/**
- * フィールドの引数からすべての型を抽出
- */
-export function getArgumentTypes(
-  field: GraphQLField<unknown, unknown>
-): GraphQLNamedType[] {
-  return field.args.map((arg) => getNamedType(arg.type));
-}
-
-/**
- * InputObject のすべてのフィールド型を抽出
- */
-export function getInputFieldTypes(
-  inputType: GraphQLInputObjectType
-): GraphQLNamedType[] {
-  const fields = inputType.getFields();
-  return Object.values(fields).map((field) => getNamedType(field.type));
-}
-
-/**
- * 組み込み型かどうかを判定（__Schema, __Type など）
- */
-export function isIntrospectionType(type: GraphQLNamedType): boolean {
-  return type.name.startsWith("__");
-}
 
 /**
  * 標準スカラー型かどうかを判定

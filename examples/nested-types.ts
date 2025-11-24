@@ -63,7 +63,6 @@ async function main() {
   console.log('🔍 Filtering for "member" role...\n');
   const memberSchema = await filterSchemaForRole(schema, {
     role: "member",
-    autoInferEntryPoints: true,
   });
 
   console.log("📋 Filtered Schema (member):\n");
@@ -74,7 +73,6 @@ async function main() {
   console.log('🔍 Filtering for "admin" role...\n');
   const adminSchema = await filterSchemaForRole(schema, {
     role: "admin",
-    autoInferEntryPoints: true,
   });
 
   console.log("📋 Filtered Schema (admin):\n");
@@ -85,7 +83,6 @@ async function main() {
   console.log('🔍 Filtering for "team-lead" role...\n');
   const teamLeadSchema = await filterSchemaForRole(schema, {
     role: "team-lead",
-    autoInferEntryPoints: true,
   });
 
   console.log("📋 Filtered Schema (team-lead):\n");

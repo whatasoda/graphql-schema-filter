@@ -25,38 +25,48 @@ interface TraversalOutputBase {
 
 interface TraversalOutput__OutputField extends TraversalOutputBase {
   source: "outputField";
-  type: GraphQLOutputType;
-  parent: GraphQLObjectType | GraphQLInterfaceType;
+  fieldType: GraphQLOutputType;
+  typeName: string;
+  fieldName: string;
+}
+
+interface TraversalOutput__InterfaceField extends TraversalOutputBase {
+  source: "interfaceField";
+  fieldType: GraphQLOutputType;
+  typeName: string;
   fieldName: string;
 }
 
 interface TraversalOutput__InputField extends TraversalOutputBase {
   source: "inputField";
-  type: GraphQLInputType;
-  parent: GraphQLInputObjectType;
+  fieldType: GraphQLInputType;
+  typeName: string;
   fieldName: string;
 }
 
-interface TraversalOutput__Implements extends TraversalOutputBase {
-  source: "implements";
-  type: GraphQLInterfaceType;
+interface TraversalOutput__ImplementedInterface extends TraversalOutputBase {
+  source: "implementedInterface";
+  interfaceType: GraphQLInterfaceType;
+  typeName: string;
 }
 
 interface TraversalOutput__UnionMember extends TraversalOutputBase {
   source: "unionMember";
-  type: GraphQLObjectType;
+  memberType: GraphQLObjectType;
+  unionName: string;
 }
 
 interface TraversalOutput__InterfaceImplementation extends TraversalOutputBase {
   source: "interfaceImplementation";
-  type: GraphQLObjectType;
-  interface: GraphQLInterfaceType;
+  implementationType: GraphQLObjectType;
+  interfaceName: string;
 }
 
 type TraversalOutput =
   | TraversalOutput__OutputField
+  | TraversalOutput__InterfaceField
   | TraversalOutput__InputField
-  | TraversalOutput__Implements
+  | TraversalOutput__ImplementedInterface
   | TraversalOutput__UnionMember
   | TraversalOutput__InterfaceImplementation;
 
@@ -64,41 +74,42 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
   return {
     *traverseObject(type: GraphQLObjectType): Generator<TraversalOutput> {
       for (const field of Object.values(type.getFields())) {
-        const nextType = getNamedType(field.type);
+        const fieldType = getNamedType(field.type);
 
         yield {
           source: "outputField" as const,
-          type: nextType,
           children: [
-            nextType,
+            fieldType,
             ...field.args.map((arg) => getNamedType(arg.type)),
           ],
-          parent: type,
+          fieldType,
+          typeName: type.name,
           fieldName: field.name,
         };
       }
 
       for (const interface_ of type.getInterfaces()) {
         yield {
-          source: "implements" as const,
-          type: interface_,
+          source: "implementedInterface" as const,
+          interfaceType: interface_,
           children: [interface_],
+          typeName: type.name,
         };
       }
     },
 
     *traverseInterface(type: GraphQLInterfaceType): Generator<TraversalOutput> {
       for (const field of Object.values(type.getFields())) {
-        const nextType = getNamedType(field.type);
+        const fieldType = getNamedType(field.type);
 
         yield {
-          source: "outputField" as const,
-          type: nextType,
+          source: "interfaceField" as const,
+          fieldType,
           children: [
-            nextType,
+            fieldType,
             ...field.args.map((arg) => getNamedType(arg.type)),
           ],
-          parent: type,
+          typeName: type.name,
           fieldName: field.name,
         };
       }
@@ -108,19 +119,20 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
       for (const implType of implementations) {
         yield {
           source: "interfaceImplementation" as const,
-          type: implType,
+          implementationType: implType,
           children: [implType],
-          interface: type,
+          interfaceName: type.name,
         };
       }
     },
 
     *traverseUnion(type: GraphQLUnionType): Generator<TraversalOutput> {
-      for (const member of schema.getPossibleTypes(type)) {
+      for (const memberType of schema.getPossibleTypes(type)) {
         yield {
           source: "unionMember" as const,
-          type: member,
-          children: [member],
+          memberType: memberType,
+          children: [memberType],
+          unionName: type.name,
         };
       }
     },
@@ -129,13 +141,13 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
       type: GraphQLInputObjectType
     ): Generator<TraversalOutput> {
       for (const field of Object.values(type.getFields())) {
-        const nextType = getNamedType(field.type);
+        const fieldType = getNamedType(field.type);
 
         yield {
           source: "inputField" as const,
-          type: nextType,
-          children: [nextType],
-          parent: type,
+          fieldType,
+          children: [fieldType],
+          typeName: type.name,
           fieldName: field.name,
         };
       }
@@ -181,11 +193,15 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
   };
 }
 
-export function traverseGraphQLNamedType(
-  schema: GraphQLSchema,
-  entrypoints: GraphQLNamedType[],
-  filter: (output: TraversalOutput) => boolean
-): Generator<GraphQLNamedType> {
+export function traverseGraphQLType({
+  schema,
+  entrypoints,
+  filter,
+}: {
+  schema: GraphQLSchema;
+  entrypoints: GraphQLNamedType[];
+  filter: (output: TraversalOutput) => boolean;
+}): Generator<GraphQLNamedType> {
   const internal = createTypeTraverserInternal(schema);
   const visited = new Set<string>();
 

@@ -22,9 +22,6 @@ export {
 export {
   computeReachability,
   traverseReachableTypes,
-  getRootType,
-  addRootField,
-  addTypeToQueue,
 } from "./analyzer/reachability";
 
 // AST Filter関連の純粋関数
@@ -39,18 +36,10 @@ export {
 } from "./utils/ast-utils";
 
 // ユーティリティ
-export {
-  getNamedType,
-  TypeKind,
-  getArgumentTypes,
-  getInputFieldTypes,
-  isIntrospectionType,
-  isBuiltInScalar,
-} from "./utils/type-utils";
+export { TypeKind, isBuiltInScalar } from "./utils/type-utils";
 
 // 型定義
 export type {
-  EntryPoints,
   ParsedExposeDirectives,
   ReachabilityConfig,
   SchemaFilterConfig,

@@ -3,15 +3,6 @@
  */
 
 /**
- * エントリーポイントの定義
- */
-export interface EntryPoints {
-  readonly queries: readonly string[];
-  readonly mutations: readonly string[];
-  readonly types: readonly string[];
-}
-
-/**
  * @expose ディレクティブのパース結果
  */
 export interface ParsedExposeDirectives {
@@ -61,17 +52,6 @@ export interface FilterSchemaOptions {
    * 対象ロール
    */
   role: string;
-
-  /**
-   * 開始点の自動推論を有効にする
-   * @default true
-   */
-  autoInferEntryPoints?: boolean;
-
-  /**
-   * 明示的な開始点（autoInferEntryPoints が false の場合に使用）
-   */
-  entryPoints?: Partial<EntryPoints>;
 
   /**
    * 到達可能性解析の設定

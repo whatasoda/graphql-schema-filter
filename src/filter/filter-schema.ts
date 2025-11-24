@@ -6,21 +6,18 @@
 
 import {
   GraphQLSchema,
-  getNamedType,
   printSchema,
   parse,
   buildASTSchema,
   Kind,
 } from "graphql";
-import type { EntryPoints, FilterSchemaOptions } from "../types";
+import type { FilterSchemaOptions } from "../types";
 import {
   parseExposeDirectives,
-  isFieldExposed,
   debugExposeDirectives,
 } from "../parser/expose-parser";
 import { computeReachability } from "../analyzer/reachability";
 import { filterDefinitionsAST } from "./ast-filter";
-import type { ParsedExposeDirectives } from "../types";
 
 /**
  * スキーマをフィルタリングして、指定ロール用のスキーマを生成
@@ -42,13 +39,7 @@ export async function filterSchemaForRole(
   schema: GraphQLSchema,
   options: FilterSchemaOptions
 ): Promise<GraphQLSchema> {
-  const {
-    role,
-    autoInferEntryPoints = true,
-    entryPoints,
-    reachabilityConfig,
-    filterConfig,
-  } = options;
+  const { role, reachabilityConfig, filterConfig } = options;
 
   // Phase 1: @expose ディレクティブをパース
   const parsedDirectives = parseExposeDirectives(schema);
@@ -58,20 +49,9 @@ export async function filterSchemaForRole(
     debugExposeDirectives(parsedDirectives);
   }
 
-  // Phase 2: 開始点を決定
-  const finalEntryPoints = autoInferEntryPoints
-    ? inferEntryPointsFromExpose(schema, parsedDirectives, role)
-    : normalizeEntryPoints(entryPoints);
-
-  console.log(`Entry points for role "${role}":`);
-  console.log(`  Queries: [${finalEntryPoints.queries.join(", ")}]`);
-  console.log(`  Mutations: [${finalEntryPoints.mutations.join(", ")}]`);
-  console.log(`  Types: [${finalEntryPoints.types.join(", ")}]`);
-
   // Phase 3: 到達可能な型を計算
   const reachableTypes = computeReachability(
     schema,
-    finalEntryPoints,
     role,
     parsedDirectives,
     reachabilityConfig
@@ -101,69 +81,4 @@ export async function filterSchemaForRole(
   console.log(`Filtered schema created for role "${role}"`);
 
   return filteredSchema;
-}
-
-/**
- * 明示的なエントリーポイントをEntryPoints型に正規化
- */
-function normalizeEntryPoints(entryPoints?: Partial<EntryPoints>): EntryPoints {
-  return {
-    queries: entryPoints?.queries ?? [],
-    mutations: entryPoints?.mutations ?? [],
-    types: entryPoints?.types ?? [],
-  };
-}
-
-/**
- * @expose ディレクティブから開始点を自動推論
- *
- * @param schema - GraphQLスキーマ
- * @param parsedDirectives - パース済みの @expose ディレクティブ情報
- * @param role - 対象ロール
- * @returns 推論されたエントリーポイント
- */
-function inferEntryPointsFromExpose(
-  schema: GraphQLSchema,
-  parsedDirectives: ParsedExposeDirectives,
-  role: string
-): EntryPoints {
-  const queries: string[] = [];
-  const mutations: string[] = [];
-  const types: string[] = [];
-
-  // Query 型から公開されているフィールドを収集
-  const queryType = schema.getQueryType();
-  if (queryType) {
-    const queryFields = queryType.getFields();
-    for (const [fieldName, field] of Object.entries(queryFields)) {
-      if (isFieldExposed(schema, parsedDirectives, "Query", fieldName, role)) {
-        queries.push(fieldName);
-        // Query フィールドの返り値型をエントリーポイントに追加
-        const returnType = getNamedType(field.type);
-        if (!types.includes(returnType.name)) {
-          types.push(returnType.name);
-        }
-      }
-    }
-  }
-
-  // Mutation 型から公開されているフィールドを収集
-  const mutationType = schema.getMutationType();
-  if (mutationType) {
-    const mutationFields = mutationType.getFields();
-    for (const [fieldName, field] of Object.entries(mutationFields)) {
-      if (
-        isFieldExposed(schema, parsedDirectives, "Mutation", fieldName, role)
-      ) {
-        mutations.push(fieldName);
-        // Mutation フィールドの返り値型をエントリーポイントに追加
-        const returnType = getNamedType(field.type);
-        if (!types.includes(returnType.name)) {
-          types.push(returnType.name);
-        }
-      }
-    }
-  }
-
-  return { queries, mutations, types };
 }

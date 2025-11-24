@@ -5,21 +5,10 @@
  * 推移的に参照されるすべての型を収集する
  */
 
-import { GraphQLSchema, GraphQLNamedType, GraphQLObjectType } from "graphql";
-import type {
-  EntryPoints,
-  ReachabilityConfig,
-  ParsedExposeDirectives,
-} from "../types";
-import {
-  getNamedType,
-  TypeKind,
-  getArgumentTypes,
-  getInputFieldTypes,
-  isIntrospectionType,
-} from "../utils/type-utils";
+import { GraphQLSchema } from "graphql";
+import type { ReachabilityConfig, ParsedExposeDirectives } from "../types";
 import { isFieldExposed } from "../parser/expose-parser";
-import { traverseGraphQLNamedType } from "./traverse";
+import { traverseGraphQLType } from "./type-traverser";
 
 const DEFAULT_CONFIG: ReachabilityConfig = {
   includeInterfaceImplementations: true,
@@ -31,73 +20,9 @@ const DEFAULT_CONFIG: ReachabilityConfig = {
 const DEBUG = process.env.DEBUG_REACHABILITY === "1";
 
 /**
- * ルート型（Query/Mutation）を取得
- */
-export function getRootType(
-  schema: GraphQLSchema,
-  rootTypeName: "Query" | "Mutation"
-): GraphQLObjectType | undefined {
-  if (rootTypeName === "Query") {
-    return schema.getQueryType() ?? undefined;
-  } else if (rootTypeName === "Mutation") {
-    return schema.getMutationType() ?? undefined;
-  }
-  return undefined;
-}
-
-/**
- * 開始点として Query/Mutation のフィールドを追加
- */
-export function addRootField(
-  schema: GraphQLSchema,
-  rootTypeName: "Query" | "Mutation",
-  fieldName: string,
-  addToQueue: (type: GraphQLNamedType) => void
-): void {
-  const rootType = getRootType(schema, rootTypeName);
-  if (!rootType) {
-    console.warn(`Root type ${rootTypeName} not found in schema`);
-    return;
-  }
-
-  const fields = rootType.getFields();
-  const field = fields[fieldName];
-  if (!field) {
-    console.warn(`Field ${fieldName} not found in ${rootTypeName} type`);
-    return;
-  }
-
-  // 戻り値の型を開始点として追加
-  const returnType = getNamedType(field.type);
-  addToQueue(returnType);
-
-  // 引数の型も開始点として追加
-  const argTypes = getArgumentTypes(field);
-  argTypes.forEach((argType) => addToQueue(argType));
-}
-
-/**
- * 開始点として Object 型を追加
- */
-export function addTypeToQueue(
-  schema: GraphQLSchema,
-  typeName: string,
-  addToQueue: (type: GraphQLNamedType) => void
-): void {
-  const type = schema.getType(typeName);
-  if (!type) {
-    console.warn(`Type ${typeName} not found in schema`);
-    return;
-  }
-
-  addToQueue(type);
-}
-
-/**
  * 到達可能な型名を yield する generator
  *
  * @param schema - GraphQL スキーマ
- * @param entryPoints - エントリーポイント（queries, mutations, types）
  * @param role - 対象ロール
  * @param parsedDirectives - パース済みの @expose ディレクティブ情報
  * @param config - 到達可能性解析の設定
@@ -113,85 +38,59 @@ export function addTypeToQueue(
  * lazy evaluation が可能です。通常のユースケースでは `computeReachability` を
  * 使用してください。
  */
-export function* traverseReachableTypes(
-  schema: GraphQLSchema,
-  entryPoints: EntryPoints,
-  role: string,
-  parsedDirectives: ParsedExposeDirectives,
-  config: ReachabilityConfig
-): Generator<string> {
-  const visited = new Set<string>();
-  const workQueue: GraphQLNamedType[] = [];
-
-  /**
-   * 作業キューに型を追加
-   */
-  function addToQueue(type: GraphQLNamedType): void {
-    // すでに訪問済みならスキップ
-    if (visited.has(type.name)) {
-      return;
-    }
-    // キューに追加
-    workQueue.push(type);
-  }
-
-  // エントリーポイントを初期化
-  // Query フィールドを追加
-  entryPoints.queries.forEach((queryName) => {
-    addRootField(schema, "Query", queryName, addToQueue);
-  });
-
-  // Mutation フィールドを追加
-  entryPoints.mutations.forEach((mutationName) => {
-    addRootField(schema, "Mutation", mutationName, addToQueue);
-  });
-
-  // 型を追加
-  entryPoints.types.forEach((typeName) => {
-    addTypeToQueue(schema, typeName, addToQueue);
-  });
-
-  if (DEBUG) {
-    const entryPointCount =
-      entryPoints.queries.length +
-      entryPoints.mutations.length +
-      entryPoints.types.length;
-    console.log(
-      `[Reachability] Starting traversal with ${entryPointCount} entry points`
-    );
-    console.log(`[Reachability] Initial queue size: ${workQueue.length}`);
-  }
-
+export function* traverseReachableTypes({
+  schema,
+  role,
+  parsedDirectives,
+  config,
+}: {
+  schema: GraphQLSchema;
+  role: string;
+  parsedDirectives: ParsedExposeDirectives;
+  config: ReachabilityConfig;
+}): Generator<string> {
   let discoveredCount = 0;
 
-  const generator = traverseGraphQLNamedType(schema, workQueue, (output) => {
-    if (output.source === "outputField") {
-      return isFieldExposed(
-        schema,
-        parsedDirectives,
-        output.parent.name,
-        output.fieldName,
-        role
-      );
-    }
+  const generator = traverseGraphQLType({
+    schema,
+    entrypoints: [
+      schema.getQueryType(),
+      schema.getMutationType(),
+      schema.getSubscriptionType(),
+    ].filter((type) => type != null),
+    filter: (output) => {
+      if (output.source === "outputField") {
+        return isFieldExposed(
+          schema,
+          parsedDirectives,
+          output.typeName,
+          output.fieldName,
+          role
+        );
+      }
 
-    if (output.source === "implements") {
-      return true;
-    }
+      if (output.source === "interfaceField") {
+        return true;
+      }
 
-    if (output.source === "interfaceImplementation") {
-      return config.includeInterfaceImplementations;
-    }
+      if (output.source === "implementedInterface") {
+        return true;
+      }
 
-    if (output.source === "unionMember") {
-      return true;
-    }
+      if (output.source === "interfaceImplementation") {
+        return config.includeInterfaceImplementations;
+      }
 
-    if (output.source === "inputField") {
-      return true;
-    }
+      if (output.source === "unionMember") {
+        return true;
+      }
 
-    throw new Error(`Unsupported output source: ${output satisfies never}`);
+      if (output.source === "inputField") {
+        return true;
+      }
+
+      throw new Error(`Unsupported output source: ${output satisfies never}`);
+    },
   });
 
   // BFS でクロージャを計算
@@ -232,23 +131,18 @@ export function* traverseReachableTypes(
  */
 export function computeReachability(
   schema: GraphQLSchema,
-  entryPoints: EntryPoints,
   role: string,
   parsedDirectives: ParsedExposeDirectives,
   config?: Partial<ReachabilityConfig>
 ): Set<string> {
   const finalConfig: ReachabilityConfig = { ...DEFAULT_CONFIG, ...config };
-  const reachableTypes = new Set<string>();
 
-  for (const typeName of traverseReachableTypes(
-    schema,
-    entryPoints,
-    role,
-    parsedDirectives,
-    finalConfig
-  )) {
-    reachableTypes.add(typeName);
-  }
-
-  return reachableTypes;
+  return new Set<string>(
+    traverseReachableTypes({
+      schema,
+      role,
+      parsedDirectives,
+      config: finalConfig,
+    })
+  );
 }

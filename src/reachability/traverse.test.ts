@@ -33,11 +33,11 @@ describe("createTypeTraverserInternal", () => {
 
       // Check id field
       const idOutput = outputs.find(
-        (o) => o.source === "outputField" && o.fieldName === "id"
+        (o) => o.source === "objectField" && o.fieldName === "id"
       );
       expect(idOutput).toBeDefined();
-      expect(idOutput?.source).toBe("outputField");
-      if (idOutput?.source === "outputField") {
+      expect(idOutput?.source).toBe("objectField");
+      if (idOutput?.source === "objectField") {
         expect(getNamedType(idOutput.fieldType).name).toBe("ID");
         expect(idOutput.typeName).toBe("User");
         expect(idOutput.children.length).toBe(1); // Return type only
@@ -45,11 +45,11 @@ describe("createTypeTraverserInternal", () => {
 
       // Check posts field with argument
       const postsOutput = outputs.find(
-        (o) => o.source === "outputField" && o.fieldName === "posts"
+        (o) => o.source === "objectField" && o.fieldName === "posts"
       );
       expect(postsOutput).toBeDefined();
-      expect(postsOutput?.source).toBe("outputField");
-      if (postsOutput?.source === "outputField") {
+      expect(postsOutput?.source).toBe("objectField");
+      if (postsOutput?.source === "objectField") {
         expect(getNamedType(postsOutput.fieldType).name).toBe("Post");
         expect(postsOutput.children.length).toBe(2); // Return type + argument type
         expect(postsOutput.children.map((c) => getNamedType(c).name)).toContain(
@@ -84,7 +84,7 @@ describe("createTypeTraverserInternal", () => {
 
       // Should have output fields + implemented interface
       const implementsOutputs = outputs.filter(
-        (o) => o.source === "implementedInterface"
+        (o) => o.source === "interfaceImplementedByObject"
       );
       expect(implementsOutputs.length).toBe(1);
       expect(implementsOutputs[0].interfaceType.name).toBe("Node");
@@ -338,7 +338,8 @@ describe("createTypeTraverserInternal", () => {
       expect(
         userOutputs.every(
           (o) =>
-            o.source === "outputField" || o.source === "implementedInterface"
+            o.source === "objectField" ||
+            o.source === "interfaceImplementedByObject"
         )
       ).toBe(true);
 
@@ -417,7 +418,7 @@ describe("traverseGraphQLType", () => {
         entrypoints: [userType as any],
         filter: (output) => {
           if (
-            output.source === "outputField" &&
+            output.source === "objectField" &&
             output.fieldName === "secret"
           ) {
             return false;

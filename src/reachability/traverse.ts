@@ -19,56 +19,58 @@ import {
   isIntrospectionType,
 } from "graphql";
 
-interface TraversalOutputBase {
+interface TraversalItemBase {
   children: GraphQLNamedType[];
 }
 
-interface TraversalOutput__OutputField extends TraversalOutputBase {
-  source: "outputField";
+interface TraversalItem__ObjectField extends TraversalItemBase {
+  source: "objectField";
   fieldType: GraphQLOutputType;
   typeName: string;
   fieldName: string;
 }
 
-interface TraversalOutput__InterfaceField extends TraversalOutputBase {
+interface TraversalItem__InterfaceField extends TraversalItemBase {
   source: "interfaceField";
   fieldType: GraphQLOutputType;
   typeName: string;
   fieldName: string;
 }
 
-interface TraversalOutput__InputField extends TraversalOutputBase {
+interface TraversalItem__InputField extends TraversalItemBase {
   source: "inputField";
   fieldType: GraphQLInputType;
   typeName: string;
   fieldName: string;
 }
 
-interface TraversalOutput__ImplementedInterface extends TraversalOutputBase {
-  source: "implementedInterface";
+interface TraversalItem__InterfaceImplementedByObject
+  extends TraversalItemBase {
+  source: "interfaceImplementedByObject";
   interfaceType: GraphQLInterfaceType;
   typeName: string;
 }
 
-interface TraversalOutput__UnionMember extends TraversalOutputBase {
+interface TraversalItem__ObjectTypeImplementingInterface
+  extends TraversalItemBase {
+  source: "objectImplementingInterface";
+  objectType: GraphQLObjectType;
+  typeName: string;
+}
+
+interface TraversalItem__UnionMember extends TraversalItemBase {
   source: "unionMember";
   memberType: GraphQLObjectType;
   unionName: string;
 }
 
-interface TraversalOutput__InterfaceImplementation extends TraversalOutputBase {
-  source: "interfaceImplementation";
-  implementationType: GraphQLObjectType;
-  typeName: string;
-}
-
 type TraverseOutput =
-  | TraversalOutput__OutputField
-  | TraversalOutput__InterfaceField
-  | TraversalOutput__InputField
-  | TraversalOutput__ImplementedInterface
-  | TraversalOutput__UnionMember
-  | TraversalOutput__InterfaceImplementation;
+  | TraversalItem__ObjectField
+  | TraversalItem__InterfaceField
+  | TraversalItem__InputField
+  | TraversalItem__InterfaceImplementedByObject
+  | TraversalItem__UnionMember
+  | TraversalItem__ObjectTypeImplementingInterface;
 
 export function createTypeTraverserInternal(schema: GraphQLSchema) {
   return {
@@ -77,7 +79,7 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
         const fieldType = getNamedType(field.type);
 
         yield {
-          source: "outputField" as const,
+          source: "objectField" as const,
           children: [
             fieldType,
             ...field.args.map((arg) => getNamedType(arg.type)),
@@ -90,7 +92,7 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
 
       for (const interface_ of type.getInterfaces()) {
         yield {
-          source: "implementedInterface" as const,
+          source: "interfaceImplementedByObject" as const,
           children: [interface_],
           interfaceType: interface_,
           typeName: type.name,
@@ -117,9 +119,9 @@ export function createTypeTraverserInternal(schema: GraphQLSchema) {
       // Yield interface implementations (possible types)
       for (const implementationType of schema.getPossibleTypes(type)) {
         yield {
-          source: "interfaceImplementation" as const,
+          source: "objectImplementingInterface" as const,
           children: [implementationType],
-          implementationType,
+          objectType: implementationType,
           typeName: type.name,
         };
       }

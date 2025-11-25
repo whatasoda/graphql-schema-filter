@@ -12,12 +12,14 @@ import {
   Kind,
 } from "graphql";
 import type { FilterSchemaOptions } from "../types";
+import { FilterSchemaOptionsSchema } from "../types";
 import {
   createSchemaAnalysis,
   debugSchemaAnalysis,
 } from "../analysis/schema-analysis";
 import { computeReachability } from "../reachability/reachability";
 import { filterDefinitionsAST } from "./ast-filter";
+import { logger } from "../utils/logger";
 
 /**
  * スキーマをフィルタリングして、指定ターゲット用のスキーマを生成
@@ -39,20 +41,20 @@ export async function filterSchema(
   schema: GraphQLSchema,
   options: FilterSchemaOptions
 ): Promise<GraphQLSchema> {
-  const { target } = options;
+  // 入力検証
+  const validatedOptions = FilterSchemaOptionsSchema.parse(options);
+  const { target } = validatedOptions;
 
   // Phase 1: @expose ディレクティブをパース
   const analysis = createSchemaAnalysis(schema);
 
-  // DEBUG: パース結果を出力
-  if (process.env.DEBUG_EXPOSE_PARSER) {
-    debugSchemaAnalysis(analysis);
-  }
+  // DEBUG: パース結果を出力（LOG_LEVEL=debug で有効）
+  debugSchemaAnalysis(analysis);
 
   // Phase 3: 到達可能な型を計算
   const reachableTypes = computeReachability(schema, target, analysis);
 
-  console.log(`Reachable types: ${reachableTypes.size}`);
+  logger.info(`Reachable types: ${reachableTypes.size}`);
 
   // Phase 4: Schema → AST に変換
   const sdl = printSchema(schema);
@@ -72,7 +74,7 @@ export async function filterSchema(
     definitions: filteredDefinitions,
   });
 
-  console.log(`Filtered schema created for target "${target}"`);
+  logger.info(`Filtered schema created for target "${target}"`);
 
   return filteredSchema;
 }

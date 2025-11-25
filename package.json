@@ -1,5 +1,5 @@
 {
-  "name": "graphql-schema-extract",
+  "name": "graphql-schema-filter",
   "version": "0.1.0",
   "description": "GraphQL schema filtering library with @expose directive support",
   "private": true,
@@ -26,6 +26,7 @@
     "@graphql-tools/utils": "^10.5.4",
     "@types/bun": "latest",
     "graphql": "^16.9.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^4.1.13"
   }
 }

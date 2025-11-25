@@ -8,11 +8,7 @@
 import { GraphQLNamedType, GraphQLSchema } from "graphql";
 import type { SchemaAnalysis } from "../types";
 import { traverseGraphQLType } from "./traverse";
-
-/**
- * DEBUG_REACHABILITY=1 でデバッグログを有効化
- */
-const DEBUG = process.env.DEBUG_REACHABILITY === "1";
+import { logger } from "../utils/logger";
 
 /**
  * 指定されたターゲットがフィールドにアクセス可能かを判定
@@ -144,17 +140,15 @@ export function computeReachability(
   const reachableTypes = new Set<string>(
     Array.from(traverseReachableTypes({ schema, target, analysis })).map(
       (type) => {
-        if (DEBUG) {
-          console.log(`[Reachability] Discovered type: ${type.name}`);
-        }
+        logger.debug(`[Reachability] Discovered type: ${type.name}`);
         return type.name;
       }
     )
   );
 
-  if (DEBUG) {
-    console.log(`[Reachability] Traversal complete. Total types discovered: `);
-  }
+  logger.debug(
+    `[Reachability] Traversal complete. Total types discovered: ${reachableTypes.size}`
+  );
 
   return reachableTypes;
 }

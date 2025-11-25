@@ -15,6 +15,7 @@ import {
   createExposureInfoFromInterfaceType,
   createExposureInfoFromInputObjectType,
 } from "./exposure-info";
+import { logger } from "../utils/logger";
 
 /**
  * スキーマから @expose ディレクティブを解析
@@ -73,34 +74,34 @@ export function createSchemaAnalysis(schema: GraphQLSchema): SchemaAnalysis {
  * @param analysis - SchemaAnalysis 情報
  */
 export function debugSchemaAnalysis(analysis: SchemaAnalysis): void {
-  console.log("=== Root Types ===");
-  console.log(`  Query: ${analysis.rootTypeNames.query ?? "(none)"}`);
-  console.log(`  Mutation: ${analysis.rootTypeNames.mutation ?? "(none)"}`);
-  console.log(
+  logger.debug("=== Root Types ===");
+  logger.debug(`  Query: ${analysis.rootTypeNames.query ?? "(none)"}`);
+  logger.debug(`  Mutation: ${analysis.rootTypeNames.mutation ?? "(none)"}`);
+  logger.debug(
     `  Subscription: ${analysis.rootTypeNames.subscription ?? "(none)"}`
   );
 
-  console.log("\n=== Types with @disableAutoExpose ===");
+  logger.debug("\n=== Types with @disableAutoExpose ===");
   const disabledTypes = Array.from(analysis.exposureInfoMap.values()).filter(
     (info) => info.isAutoExposeDisabled
   );
   if (disabledTypes.length === 0) {
-    console.log("  (none)");
+    logger.debug("  (none)");
   } else {
     for (const info of disabledTypes) {
-      console.log(`  ${info.typeName}`);
+      logger.debug(`  ${info.typeName}`);
     }
   }
 
-  console.log("\n=== Field-level @expose ===");
+  logger.debug("\n=== Field-level @expose ===");
   let hasExposedFields = false;
   for (const [typeName, typeInfo] of analysis.exposureInfoMap.entries()) {
     for (const [fieldName, fieldInfo] of typeInfo.fields.entries()) {
       hasExposedFields = true;
-      console.log(`${typeName}.${fieldName}: [${fieldInfo.tags.join(", ")}]`);
+      logger.debug(`${typeName}.${fieldName}: [${fieldInfo.tags.join(", ")}]`);
     }
   }
   if (!hasExposedFields) {
-    console.log("  (none)");
+    logger.debug("  (none)");
   }
 }

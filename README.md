@@ -216,12 +216,17 @@ Rebuilds GraphQL schema with filtered fields.
 See the [examples/](./examples/) directory:
 
 - `basic-usage.ts` - Simple schema filtering example
-- `api-integration.ts` - Integration with GraphQL API endpoint
+- `nested-types.ts` - Nested type structures with filtering
+- `disable-auto-expose.ts` - Using @disableAutoExpose directive
+- `polymorphic-types.ts` - Interface and Union type handling
 
 Run examples:
 
 ```bash
-bun run example:basic
+bun example basic
+bun example nested
+bun example disable-auto-expose
+bun example polymorphic
 ```
 
 ## Development

@@ -2,6 +2,8 @@
  * 共通型定義
  */
 
+import { z } from "zod";
+
 /**
  * 型レベルの exposure 情報
  */
@@ -43,3 +45,11 @@ export interface FilterSchemaOptions {
    */
   target: string;
 }
+
+/**
+ * FilterSchemaOptions の Zod スキーマ
+ * 入力検証に使用
+ */
+export const FilterSchemaOptionsSchema = z.object({
+  target: z.string().min(1, "target must be a non-empty string"),
+});

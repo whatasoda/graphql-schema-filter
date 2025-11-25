@@ -15,47 +15,57 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   none: 3,
 };
 
-class Logger {
-  private level: LogLevel;
+const isValidLogLevel = (level: string): level is LogLevel => {
+  return (
+    level === "debug" ||
+    level === "info" ||
+    level === "warn" ||
+    level === "none"
+  );
+};
 
-  constructor() {
-    const envLevel = process.env.LOG_LEVEL?.toLowerCase();
-    this.level = this.isValidLogLevel(envLevel) ? envLevel : "info";
-  }
+const getDefaultLogLevel = (logLevelEnv: string | undefined) => {
+  const envLevel = process.env[logLevelEnv ?? "LOG_LEVEL"]?.toLowerCase();
+  return envLevel && isValidLogLevel(envLevel) ? envLevel : "info";
+};
 
-  private isValidLogLevel(level: string | undefined): level is LogLevel {
-    return (
-      level === "debug" ||
-      level === "info" ||
-      level === "warn" ||
-      level === "none"
-    );
-  }
+const createLogger = (
+  config: { level?: LogLevel; logLevelEnv?: string } = {}
+) => {
+  const state: { level: LogLevel } = {
+    level: config.level ?? getDefaultLogLevel(config.logLevelEnv),
+  };
 
-  private shouldLog(level: LogLevel): boolean {
-    return LOG_LEVELS[level] >= LOG_LEVELS[this.level];
-  }
+  const shouldLog = (level: LogLevel) => {
+    return LOG_LEVELS[level] >= LOG_LEVELS[state.level];
+  };
 
-  debug(message: string): void {
-    if (this.shouldLog("debug")) {
-      console.log(`[DEBUG] ${message}`);
-    }
-  }
+  return {
+    setLogLevel: (level: LogLevel) => {
+      if (isValidLogLevel(level)) {
+        state.level = level;
+      }
+    },
 
-  info(message: string): void {
-    if (this.shouldLog("info")) {
-      console.log(`[INFO] ${message}`);
-    }
-  }
-
-  warn(message: string): void {
-    if (this.shouldLog("warn")) {
-      console.warn(`[WARN] ${message}`);
-    }
-  }
-}
+    debug: (message: string) => {
+      if (shouldLog("debug")) {
+        console.log(`[DEBUG] ${message}`);
+      }
+    },
+    info: (message: string) => {
+      if (shouldLog("info")) {
+        console.log(`[INFO] ${message}`);
+      }
+    },
+    warn: (message: string) => {
+      if (shouldLog("warn")) {
+        console.warn(`[WARN] ${message}`);
+      }
+    },
+  };
+};
 
 /**
  * シングルトンロガーインスタンス
  */
-export const logger = new Logger();
+export const logger = createLogger();

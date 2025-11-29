@@ -1,5 +1,4 @@
-import { defineConfig } from "@rslib/core";
-import exports from "./exports.json";
+import { defineConfig, type RslibConfig } from "@rslib/core";
 
 export default defineConfig({
   lib: [
@@ -29,12 +28,14 @@ export default defineConfig({
     },
   ],
   source: {
-    entry: exports,
+    entry: {
+      index: "./src/index.ts",
+    },
     tsconfigPath: "./tsconfig.build.json",
-    exclude: ["**/*.test.ts"],
   },
   output: {
     target: "node",
     sourceMap: true,
+    copy: [{ from: "./directives.graphql", context: "./src" }],
   },
 });

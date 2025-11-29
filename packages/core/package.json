@@ -1,6 +1,6 @@
 {
   "name": "@graphql-schema-filter/core",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "GraphQL schema filtering library with @expose directive support for target-based access control",
   "private": false,
   "type": "module",
@@ -15,7 +15,8 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./directives.graphql": "./dist/directives.graphql"
   },
   "files": [
     "dist"

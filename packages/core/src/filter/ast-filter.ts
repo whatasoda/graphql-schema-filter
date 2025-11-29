@@ -257,8 +257,16 @@ function createFilterVisitor(context: FilterVisitorContext): ASTVisitor {
     // Remove schema definition (buildASTSchema generates it automatically)
     SchemaDefinition: () => null,
 
-    // Keep directive definitions as-is
-    DirectiveDefinition: () => undefined,
+    // Exclude internal directives (expose, disableAutoExpose), keep others
+    DirectiveDefinition: {
+      enter: (node) => {
+        const name = node.name.value;
+        if (name === "expose" || name === "disableAutoExpose") {
+          return null;
+        }
+        return undefined;
+      },
+    },
 
     ObjectTypeDefinition: {
       enter: (node) => visitObjectType(node, context),

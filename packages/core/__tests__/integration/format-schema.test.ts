@@ -114,7 +114,7 @@ describe("format-schema", () => {
       // User fields should be sorted: aId, mEmail, zName, zUpdatedAt
       const userMatch = sdl.match(/type User implements Node \{([^}]+)\}/);
       expect(userMatch).toBeTruthy();
-      const userFields = userMatch![1];
+      const userFields = userMatch![1]!;
       const aIdPos = userFields.indexOf("aId");
       const mEmailPos = userFields.indexOf("mEmail");
       const zNamePos = userFields.indexOf("zName");
@@ -139,7 +139,7 @@ describe("format-schema", () => {
       // Query fields should be sorted: aAdmins, zUsers
       const queryMatch = sdl.match(/type Query \{([^}]+)\}/);
       expect(queryMatch).toBeTruthy();
-      const queryFields = queryMatch![1];
+      const queryFields = queryMatch![1]!;
       const aAdminsPos = queryFields.indexOf("aAdmins");
       const zUsersPos = queryFields.indexOf("zUsers");
 
@@ -160,7 +160,7 @@ describe("format-schema", () => {
       // Node fields should be sorted: aId, zUpdatedAt
       const nodeMatch = sdl.match(/interface Node \{([^}]+)\}/);
       expect(nodeMatch).toBeTruthy();
-      const nodeFields = nodeMatch![1];
+      const nodeFields = nodeMatch![1]!;
       const aIdPos = nodeFields.indexOf("aId");
       const zUpdatedAtPos = nodeFields.indexOf("zUpdatedAt");
 
@@ -181,7 +181,7 @@ describe("format-schema", () => {
       // CreateUserInput fields should be sorted: aEmail, zName
       const inputMatch = sdl.match(/input CreateUserInput \{([^}]+)\}/);
       expect(inputMatch).toBeTruthy();
-      const inputFields = inputMatch![1];
+      const inputFields = inputMatch![1]!;
       const aEmailPos = inputFields.indexOf("aEmail");
       const zNamePos = inputFields.indexOf("zName");
 
@@ -218,7 +218,7 @@ describe("format-schema", () => {
       // Fields should be sorted alphabetically by default
       const userMatch = sdl.match(/type User implements Node \{([^}]+)\}/);
       expect(userMatch).toBeTruthy();
-      const userFields = userMatch![1];
+      const userFields = userMatch![1]!;
       const aIdPos = userFields.indexOf("aId");
       const zNamePos = userFields.indexOf("zName");
 

@@ -18,8 +18,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "allowSyntheticDefaultImports": true,
-    "types": ["bun", "node"]
+    "allowSyntheticDefaultImports": true
   },
   "exclude": ["node_modules", "dist", "build", "coverage"]
 }

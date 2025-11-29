@@ -6,8 +6,7 @@
     "customConditions": ["development"],
     "outDir": "node_modules/.cache/@graphql-schema-filter/.typecheck/root",
     "tsBuildInfoFile": "node_modules/.cache/@graphql-schema-filter/.typecheck/root/tsconfig.tsbuildinfo",
-    "rootDir": ".",
-    "types": ["node"]
+    "rootDir": "."
   },
   "include": ["scripts/**/*"],
   "exclude": ["node_modules", "dist"]

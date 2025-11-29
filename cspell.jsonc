@@ -1,7 +1,17 @@
 {
   "version": "0.2",
   "language": "en",
-  "words": ["bunx", "Hatada", "rslib", "Shota", "whatasoda"],
+  "words": [
+    "bunx",
+    "Hatada",
+    "neverthrow",
+    "rslib",
+    "Shota",
+    "whatasoda"
+  ],
   "ignoreRegExpList": [],
-  "ignorePaths": ["node_modules", "dist"]
+  "ignorePaths": [
+    "node_modules",
+    "dist"
+  ]
 }

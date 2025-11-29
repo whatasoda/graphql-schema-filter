@@ -1,4 +1,5 @@
 import { defineConfig } from "@rslib/core";
+import exports from "./exports.json";
 
 export default defineConfig({
   lib: [
@@ -24,9 +25,7 @@ export default defineConfig({
     },
   ],
   source: {
-    entry: {
-      index: "./src/index.ts",
-    },
+    entry: exports,
     exclude: ["**/*.test.ts"],
   },
   output: {

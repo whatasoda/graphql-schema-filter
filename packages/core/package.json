@@ -4,24 +4,22 @@
   "description": "GraphQL schema filtering library with @expose directive support for target-based access control",
   "private": false,
   "type": "module",
-  "main": "./dist/index.cjs",
+  "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
   "files": [
     "dist"
   ],
-  "scripts": {
-    "build": "rslib build",
-    "typecheck": "tsc --noEmit"
-  },
   "keywords": [
     "graphql",
     "schema",

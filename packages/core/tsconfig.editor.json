@@ -8,6 +8,6 @@
     "tsBuildInfoFile": "../../node_modules/.cache/@graphql-schema-filter/.typecheck/core/tsconfig.tsbuildinfo",
     "rootDir": "."
   },
-  "include": ["**/*"],
+  "include": ["**/*", "**/*.json"],
   "exclude": ["node_modules", "dist"]
 }

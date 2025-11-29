@@ -12,7 +12,8 @@
     "typecheck": "tsc -b",
     "build": "bun run --cwd packages/core build",
     "example": "bun run scripts/example.ts",
-    "test": "bun test"
+    "test": "bun --conditions=development test",
+    "sync-exports": "bun run scripts/sync-exports.ts"
   },
   "keywords": [
     "graphql",
@@ -28,5 +29,8 @@
     "graphql": "^16.9.0",
     "typescript": "^5.9.3",
     "zod": "^4.1.13"
+  },
+  "dependencies": {
+    "neverthrow": "^8.2.0"
   }
 }

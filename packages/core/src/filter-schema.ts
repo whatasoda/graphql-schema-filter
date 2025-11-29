@@ -11,7 +11,10 @@ import {
   buildASTSchema,
   Kind,
 } from "graphql";
-import type { FilterSchemaOptions } from "./types";
+import {
+  validateFilterSchemaOptions,
+  type FilterSchemaOptions,
+} from "./options";
 import {
   createSchemaAnalysis,
   debugSchemaAnalysis,
@@ -26,42 +29,32 @@ import { logger } from "./utils/logger";
  * @param schema - The original GraphQL schema
  * @param options - Filtering options
  * @returns The filtered GraphQL schema
- *
- * @remarks
- * Uses a 6-phase pipeline:
- * 1. Parse: Extract @expose directives (Schema API)
- * 2. Infer Entry Points: Determine entry points (auto-inference or explicit specification)
- * 3. Reachability: Compute reachable types via BFS (Schema API)
- * 4. AST Conversion: Convert Schema to SDL → AST
- * 5. AST Filtering: Filter AST definitions by reachability and expose rules
- * 6. Schema Building: Build new schema from filtered AST
  */
 export function filterSchema(
   schema: GraphQLSchema,
   options: FilterSchemaOptions
 ): GraphQLSchema {
-  // Validate input
-  if (!options.target || typeof options.target !== "string") {
-    throw new Error("target must be a non-empty string");
-  }
-  const { target } = options;
+  validateFilterSchemaOptions(options);
 
-  // Phase 1: Parse @expose directives
+  const { target, logLevel = "none" } = options;
+  logger.setLogLevel(logLevel);
+
+  // Phase 1 [Schema Analysis]: Extract @expose directives (Schema API)
   const analysis = createSchemaAnalysis(schema);
 
   // DEBUG: Output parse results (enabled with LOG_LEVEL=debug)
   debugSchemaAnalysis(analysis);
 
-  // Phase 3: Compute reachable types
+  // Phase 2 [Reachability]: Compute reachable types via BFS (Schema API)
   const reachableTypes = computeReachability(schema, target, analysis);
 
   logger.info(`Reachable types: ${reachableTypes.size}`);
 
-  // Phase 4: Convert Schema to AST
+  // Phase 3 [AST Conversion]: Convert Schema to SDL → AST
   const sdl = printSchema(schema);
   const ast = parse(sdl);
 
-  // Phase 5: Filter AST
+  // Phase 4 [AST Filtering]: Filter AST definitions by reachability and expose rules
   const filteredDefinitions = filterDefinitionsAST(
     ast,
     target,
@@ -69,7 +62,7 @@ export function filterSchema(
     analysis
   );
 
-  // Phase 6: Build new schema from filtered AST
+  // Phase 5 [Schema Building]: Build new schema from filtered AST
   const filteredSchema = buildASTSchema({
     kind: Kind.DOCUMENT,
     definitions: filteredDefinitions,

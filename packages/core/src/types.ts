@@ -1,8 +1,4 @@
 /**
- * Common type definitions
- */
-
-/**
  * Type-level exposure information
  */
 export interface TypeLevelExposureInfo {
@@ -32,14 +28,4 @@ export interface SchemaAnalysis {
   };
 
   readonly exposureInfoMap: ReadonlyMap<string, TypeLevelExposureInfo>;
-}
-
-/**
- * Schema filtering options
- */
-export interface FilterSchemaOptions {
-  /**
-   * Target identifier
-   */
-  target: string;
 }

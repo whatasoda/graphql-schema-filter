@@ -6,22 +6,13 @@
  * Default: info
  */
 
-type LogLevel = "debug" | "info" | "warn" | "none";
+import { isValidLogLevel, LogLevel } from "../options";
 
 const LOG_LEVELS: Record<LogLevel, number> = {
   debug: 0,
   info: 1,
   warn: 2,
   none: 3,
-};
-
-const isValidLogLevel = (level: string): level is LogLevel => {
-  return (
-    level === "debug" ||
-    level === "info" ||
-    level === "warn" ||
-    level === "none"
-  );
 };
 
 const getDefaultLogLevel = (logLevelEnv: string | undefined) => {

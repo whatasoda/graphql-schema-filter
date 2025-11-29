@@ -5,13 +5,11 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "examples/*"
+    "packages/*"
   ],
   "scripts": {
     "typecheck": "tsc -b",
     "build": "bun run --cwd packages/core build",
-    "example": "bun run scripts/example.ts",
     "test": "bun --conditions=development test",
     "sync-exports": "bun run scripts/sync-exports.ts"
   },

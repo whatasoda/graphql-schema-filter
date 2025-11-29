@@ -1,0 +1,56 @@
+{
+  "name": "@graphql-schema-filter/schema-first-approach",
+  "version": "0.1.1",
+  "description": "GraphQL schema filtering library with schema first approach",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "graphql",
+    "schema",
+    "filtering",
+    "access-control",
+    "rbac",
+    "directive"
+  ],
+  "author": {
+    "name": "Shota Hatada",
+    "email": "shota.hatada@whatasoda.me",
+    "url": "https://github.com/whatasoda"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/whatasoda/graphql-schema-filter.git",
+    "directory": "packages/schema-first-approach"
+  },
+  "dependencies": {
+    "@graphql-schema-filter/core": "workspace:*",
+    "fast-glob": "^3.3.3",
+    "rxjs": "^7.8.2"
+  },
+  "peerDependencies": {
+    "graphql": "^16.0.0"
+  },
+  "devDependencies": {
+    "graphql": "^16.9.0"
+  },
+  "scripts": {
+    "build": "rslib build"
+  }
+}

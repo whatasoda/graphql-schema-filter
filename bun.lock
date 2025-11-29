@@ -17,14 +17,27 @@
     },
     "packages/core": {
       "name": "@graphql-schema-filter/core",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "graphql": "^16.9.0",
-        "zod": "^4.1.13",
       },
       "peerDependencies": {
         "graphql": "^16.0.0",
-        "zod": "^4.0.0",
+      },
+    },
+    "packages/schema-first-approach": {
+      "name": "@graphql-schema-filter/schema-first-approach",
+      "version": "0.1.1",
+      "dependencies": {
+        "@graphql-schema-filter/core": "workspace:*",
+        "fast-glob": "^3.3.3",
+        "rxjs": "^7.8.2",
+      },
+      "devDependencies": {
+        "graphql": "^16.9.0",
+      },
+      "peerDependencies": {
+        "graphql": "^16.0.0",
       },
     },
   },
@@ -56,6 +69,8 @@
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.1.0", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-WI0DdZ8xFSbgMjR1sFsKABJ/C5OnRrjT06JXbZKexJGrDuPTzZdDYfFlsgcCXCyf+suG5QU2e/y1Wo2V/OapLQ=="],
 
     "@graphql-schema-filter/core": ["@graphql-schema-filter/core@workspace:packages/core"],
+
+    "@graphql-schema-filter/schema-first-approach": ["@graphql-schema-filter/schema-first-approach@workspace:packages/schema-first-approach"],
 
     "@isaacs/balanced-match": ["@isaacs/balanced-match@4.0.1", "", {}, "sha512-yzMTt9lEb8Gv7zRioUilSglI0c0smZ9k5D65677DLWLtWJaXIS3CqcGyUFByYKlnUj6TkjLVs54fBl6+TiGQDQ=="],
 
@@ -230,6 +245,8 @@
     "rsbuild-plugin-dts": ["rsbuild-plugin-dts@0.18.2", "", { "dependencies": { "@ast-grep/napi": "0.37.0" }, "peerDependencies": { "@microsoft/api-extractor": "^7", "@rsbuild/core": "1.x", "@typescript/native-preview": "7.x", "typescript": "^5" }, "optionalPeers": ["@microsoft/api-extractor", "@typescript/native-preview", "typescript"] }, "sha512-gUZ6MXjp7PQtBWlyCkcNp34scgc7qSQRc6Rw4YHVeuBnLvVAXsToYJHn32ImYPBJzRGFA9dz5D1r7ZZKurD7Vg=="],
 
     "run-parallel": ["run-parallel@1.2.0", "", { "dependencies": { "queue-microtask": "^1.2.2" } }, "sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA=="],
+
+    "rxjs": ["rxjs@7.8.2", "", { "dependencies": { "tslib": "^2.1.0" } }, "sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA=="],
 
     "semver": ["semver@7.5.4", "", { "dependencies": { "lru-cache": "^6.0.0" }, "bin": { "semver": "bin/semver.js" } }, "sha512-1bCSESV6Pv+i21Hvpxp3Dx+pSD8lIPt8uVjRrxAUt/nbswYc+tK6Y2btiULjd4+fnq15PX+nqQDC7Oft7WkwcA=="],
 

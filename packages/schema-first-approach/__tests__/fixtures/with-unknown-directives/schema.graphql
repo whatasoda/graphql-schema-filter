@@ -1,0 +1,9 @@
+directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+type Query {
+  users: [User!]! @expose(tags: ["public"]) @deprecated(reason: "test")
+}
+
+type User @someUnknownDirective {
+  id: ID!
+}

@@ -47,6 +47,10 @@ web_modules/
 # TypeScript cache
 *.tsbuildinfo
 
+# Generated declaration files (tsc -b output in src directories)
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.d.ts.map
+
 # Optional npm cache directory
 .npm
 

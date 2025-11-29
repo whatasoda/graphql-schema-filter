@@ -9,9 +9,9 @@
     "examples/*"
   ],
   "scripts": {
+    "typecheck": "tsc -b",
     "build": "bun run --cwd packages/core build",
     "example": "bun run scripts/example.ts",
-    "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
   "keywords": [

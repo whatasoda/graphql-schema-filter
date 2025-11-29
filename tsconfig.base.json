@@ -9,9 +9,17 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "isolatedModules": true,
+    "allowJs": false,
     "declaration": true,
     "declarationMap": true,
-    "types": ["bun-types", "node"]
-  }
+    "isolatedModules": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "allowSyntheticDefaultImports": true,
+    "types": ["bun", "node"]
+  },
+  "exclude": ["node_modules", "dist", "build", "coverage"]
 }

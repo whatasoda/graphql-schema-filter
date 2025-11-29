@@ -1,16 +1,14 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "composite": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "customConditions": ["development"]
   },
-  "include": [
-    "packages/*/src/**/*",
-    "examples/*/src/**/*",
-    "scripts/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/dist",
-    "**/node_modules"
+  "files": [],
+  "references": [
+    { "path": "tsconfig.editor.json" },
+    { "path": "packages/core/tsconfig.editor.json" }
   ]
 }

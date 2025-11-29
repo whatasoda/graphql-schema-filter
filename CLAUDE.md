@@ -147,7 +147,8 @@ packages/
     ├── dist/                   # Built files (ESM + CJS + DTS)
     ├── package.json            # Package metadata & exports
     ├── rslib.config.ts         # Build configuration
-    └── tsconfig.json           # TypeScript configuration
+    ├── tsconfig.build.json     # TypeScript configuration for rslib build
+    └── tsconfig.editor.json    # TypeScript configuration for editor/IDE
 
 examples/
 └── basic/                      # Basic usage example
@@ -157,6 +158,10 @@ examples/
 
 scripts/
 └── example.ts                  # Example runner script
+
+tsconfig.json                   # Root project references (tsc -b)
+tsconfig.base.json              # Shared TypeScript compiler options
+tsconfig.editor.json            # TypeScript configuration for scripts/
 ```
 
 ## Important Implementation Notes

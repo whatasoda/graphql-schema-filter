@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "customConditions": ["development"],
+    "outDir": "../../node_modules/.cache/@graphql-schema-filter/.typecheck/core",
+    "tsBuildInfoFile": "../../node_modules/.cache/@graphql-schema-filter/.typecheck/core/tsconfig.tsbuildinfo",
+    "rootDir": "."
+  },
+  "include": ["**/*"],
+  "exclude": ["node_modules", "dist"]
+}

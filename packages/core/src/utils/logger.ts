@@ -1,9 +1,9 @@
 /**
- * ログレベル管理
+ * Log level management
  *
- * 環境変数 LOG_LEVEL でログレベルを制御
- * 指定可能な値: debug, info, warn, none
- * デフォルト: info
+ * Controls log level via LOG_LEVEL environment variable
+ * Available values: debug, info, warn, none
+ * Default: info
  */
 
 type LogLevel = "debug" | "info" | "warn" | "none";
@@ -66,6 +66,6 @@ const createLogger = (
 };
 
 /**
- * シングルトンロガーインスタンス
+ * Singleton logger instance
  */
 export const logger = createLogger();

@@ -1,7 +1,7 @@
 /**
- * メインスキーマフィルタリング関数
+ * Main schema filtering function
  *
- * 到達可能性アナライザー、@expose パーサー、スキーマフィルターを統合
+ * Integrates reachability analyzer, @expose parser, and schema filter
  */
 
 import {
@@ -22,45 +22,45 @@ import { filterDefinitionsAST } from "./filter/ast-filter";
 import { logger } from "./utils/logger";
 
 /**
- * スキーマをフィルタリングして、指定ターゲット用のスキーマを生成
+ * Filters a schema to generate a schema for the specified target
  *
- * @param schema - 元のGraphQLスキーマ
- * @param options - フィルタリングオプション
- * @returns フィルタリング済みのGraphQLスキーマ
+ * @param schema - The original GraphQL schema
+ * @param options - Filtering options
+ * @returns The filtered GraphQL schema
  *
  * @remarks
- * 6フェーズのパイプラインを使用:
- * 1. Parse: @expose ディレクティブを抽出（Schema API）
- * 2. Infer Entry Points: エントリーポイントを決定（自動推論または明示的指定）
- * 3. Reachability: BFSで到達可能な型を計算（Schema API）
- * 4. AST Conversion: Schema を SDL → AST に変換
- * 5. AST Filtering: AST 定義を到達可能性・expose ルールでフィルタリング
- * 6. Schema Building: フィルタリング済み AST から新しいスキーマを構築
+ * Uses a 6-phase pipeline:
+ * 1. Parse: Extract @expose directives (Schema API)
+ * 2. Infer Entry Points: Determine entry points (auto-inference or explicit specification)
+ * 3. Reachability: Compute reachable types via BFS (Schema API)
+ * 4. AST Conversion: Convert Schema to SDL → AST
+ * 5. AST Filtering: Filter AST definitions by reachability and expose rules
+ * 6. Schema Building: Build new schema from filtered AST
  */
 export async function filterSchema(
   schema: GraphQLSchema,
   options: FilterSchemaOptions
 ): Promise<GraphQLSchema> {
-  // 入力検証
+  // Validate input
   const validatedOptions = FilterSchemaOptionsSchema.parse(options);
   const { target } = validatedOptions;
 
-  // Phase 1: @expose ディレクティブをパース
+  // Phase 1: Parse @expose directives
   const analysis = createSchemaAnalysis(schema);
 
-  // DEBUG: パース結果を出力（LOG_LEVEL=debug で有効）
+  // DEBUG: Output parse results (enabled with LOG_LEVEL=debug)
   debugSchemaAnalysis(analysis);
 
-  // Phase 3: 到達可能な型を計算
+  // Phase 3: Compute reachable types
   const reachableTypes = computeReachability(schema, target, analysis);
 
   logger.info(`Reachable types: ${reachableTypes.size}`);
 
-  // Phase 4: Schema → AST に変換
+  // Phase 4: Convert Schema to AST
   const sdl = printSchema(schema);
   const ast = parse(sdl);
 
-  // Phase 5: AST をフィルタリング
+  // Phase 5: Filter AST
   const filteredDefinitions = filterDefinitionsAST(
     ast,
     target,
@@ -68,7 +68,7 @@ export async function filterSchema(
     analysis
   );
 
-  // Phase 6: フィルタリング済み AST から新しいスキーマを構築
+  // Phase 6: Build new schema from filtered AST
   const filteredSchema = buildASTSchema({
     kind: Kind.DOCUMENT,
     definitions: filteredDefinitions,

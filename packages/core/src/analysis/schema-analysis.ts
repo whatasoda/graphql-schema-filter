@@ -1,5 +1,5 @@
 /**
- * @expose ディレクティブのパースと適用ルールの解決
+ * Parsing and application rule resolution for @expose directive
  */
 
 import {
@@ -18,20 +18,20 @@ import {
 import { logger } from "../utils/logger";
 
 /**
- * スキーマから @expose ディレクティブを解析
+ * Parses @expose directives from schema
  *
- * @param schema - GraphQLスキーマ
- * @returns 解析済みの @expose ディレクティブ情報
+ * @param schema - GraphQL schema
+ * @returns Parsed @expose directive information
  */
 export function createSchemaAnalysis(schema: GraphQLSchema): SchemaAnalysis {
-  // Root 型の名前を取得
+  // Get root type names
   const rootTypeNames = {
     query: schema.getQueryType()?.name ?? null,
     mutation: schema.getMutationType()?.name ?? null,
     subscription: schema.getSubscriptionType()?.name ?? null,
   };
 
-  // Root 型名のセット（高速検索用）
+  // Set of root type names (for fast lookup)
   const rootTypeNameSet = new Set<string>(
     [
       rootTypeNames.query,
@@ -69,9 +69,9 @@ export function createSchemaAnalysis(schema: GraphQLSchema): SchemaAnalysis {
 }
 
 /**
- * デバッグ用：すべての @expose 情報を出力
+ * Debug: outputs all @expose information
  *
- * @param analysis - SchemaAnalysis 情報
+ * @param analysis - SchemaAnalysis information
  */
 export function debugSchemaAnalysis(analysis: SchemaAnalysis): void {
   logger.debug("=== Root Types ===");

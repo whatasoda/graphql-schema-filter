@@ -1,8 +1,8 @@
 import { ConstDirectiveNode, Kind } from "graphql";
 
 /**
- * AST ノードから @expose ディレクティブのロールを抽出
- * @returns ディレクティブが存在する場合は tags 配列、存在しない場合は undefined
+ * Extracts @expose directive tags from AST node
+ * @returns tags array if directive exists, undefined otherwise
  */
 export function extractExposureTags({
   directives,

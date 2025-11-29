@@ -1,5 +1,5 @@
 /**
- * AST ベースのスキーマフィルタリング
+ * AST-based schema filtering
  */
 
 import type {
@@ -15,21 +15,21 @@ import type {
 import type { SchemaAnalysis } from "../types";
 
 /**
- * AST FieldDefinitionNode から指定されたターゲットがフィールドにアクセス可能かを判定
+ * Determines whether the specified target can access a field from AST FieldDefinitionNode
  *
- * @param typeName - 親型の名前
- * @param field - フィールド定義 AST ノード
- * @param analysis - SchemaAnalysis 情報
- * @param target - ターゲット名
- * @returns フィールドが公開されている場合 true
+ * @param typeName - Parent type name
+ * @param field - Field definition AST node
+ * @param analysis - SchemaAnalysis information
+ * @param target - Target name
+ * @returns true if the field is exposed
  *
  * @remarks
- * ルール:
- * - フィールドに @expose がある場合、そのターゲットリストで判定
- * - フィールドに @expose がない場合:
- *   - Query/Mutation/Subscription 型: 非公開（除外）
- *   - @disableAutoExpose が付いた型: 非公開（除外）
- *   - その他の output type: 公開（デフォルト公開）
+ * Rules:
+ * - If the field has @expose, decision is based on its target list
+ * - If the field has no @expose:
+ *   - Query/Mutation/Subscription types: not exposed (excluded)
+ *   - Types with @disableAutoExpose: not exposed (excluded)
+ *   - Other output types: exposed (default public)
  */
 export function isFieldExposedFromAST({
   typeName,
@@ -47,29 +47,29 @@ export function isFieldExposedFromAST({
     return false;
   }
 
-  // フィールドレベルの @expose をチェック
+  // Check field-level @expose
   const fieldInfo = exposureInfo.fields.get(field.name.value);
   if (fieldInfo !== undefined) {
     return fieldInfo.tags.includes(target);
   }
 
-  // @expose がない場合の判定
-  // Root 型または @disableAutoExpose が付いている型は除外
+  // Decision when no @expose is present
+  // Root types or types with @disableAutoExpose are excluded
   if (exposureInfo.isRootType || exposureInfo.isAutoExposeDisabled) {
     return false;
   }
 
-  // その他の output type はデフォルト公開
+  // Other output types are exposed by default
   return true;
 }
 
 /**
- * ObjectTypeDefinition のフィールドをフィルタリング
+ * Filters fields of ObjectTypeDefinition
  *
- * @param typeDef - Object 型定義 AST ノード
- * @param analysis - パース済みの @expose ディレクティブ情報
- * @param target - 対象ターゲット
- * @returns フィルタリング済みのフィールド配列
+ * @param typeDef - Object type definition AST node
+ * @param analysis - Parsed @expose directive information
+ * @param target - Target identifier
+ * @returns Filtered field array
  */
 function filterObjectFields(
   typeDef: ObjectTypeDefinitionNode,
@@ -80,7 +80,7 @@ function filterObjectFields(
     return undefined;
   }
 
-  // exposed-only: @expose ルールに基づいてフィルタリング
+  // exposed-only: Filter based on @expose rules
   return typeDef.fields.filter((field) =>
     isFieldExposedFromAST({
       typeName: typeDef.name.value,
@@ -92,12 +92,12 @@ function filterObjectFields(
 }
 
 /**
- * InterfaceTypeDefinition のフィールドをフィルタリング
+ * Filters fields of InterfaceTypeDefinition
  *
- * @param typeDef - Interface 型定義 AST ノード
- * @param analysis - パース済みの @expose ディレクティブ情報
- * @param target - 対象ターゲット
- * @returns フィルタリング済みのフィールド配列
+ * @param typeDef - Interface type definition AST node
+ * @param analysis - Parsed @expose directive information
+ * @param target - Target identifier
+ * @returns Filtered field array
  */
 function filterInterfaceFields(
   typeDef: InterfaceTypeDefinitionNode,
@@ -108,7 +108,7 @@ function filterInterfaceFields(
     return undefined;
   }
 
-  // exposed-only: @expose ルールに基づいてフィルタリング
+  // exposed-only: Filter based on @expose rules
   return typeDef.fields.filter((field) =>
     isFieldExposedFromAST({
       typeName: typeDef.name.value,
@@ -120,15 +120,15 @@ function filterInterfaceFields(
 }
 
 /**
- * InputObjectTypeDefinition のフィールドをフィルタリング
+ * Filters fields of InputObjectTypeDefinition
  *
- * @param typeDef - InputObject 型定義 AST ノード
- * @param analysis - パース済みの @expose ディレクティブ情報
- * @param target - 対象ターゲット
- * @returns フィルタリング済みのフィールド配列
+ * @param typeDef - InputObject type definition AST node
+ * @param analysis - Parsed @expose directive information
+ * @param target - Target identifier
+ * @returns Filtered field array
  *
  * @remarks
- * InputObject は寛容モード: @expose がない場合はデフォルトで含める
+ * InputObject uses permissive mode: included by default when no @expose is present
  */
 function filterInputObjectFields(
   typeDef: InputObjectTypeDefinitionNode,
@@ -150,14 +150,13 @@ function filterInputObjectFields(
 }
 
 /**
- * ObjectTypeDefinition をフィルタリング
+ * Filters ObjectTypeDefinition
  *
- * @param typeDef - Object 型定義 AST ノード
- * @param analysis - パース済みの @expose ディレクティブ情報
- * @param target - 対象ターゲット
- * @param config - フィルタリング設定
- * @param reachableTypes - 到達可能な型名の集合
- * @returns フィルタリング済みの Object 型定義、またはフィールドが空の場合 null
+ * @param typeDef - Object type definition AST node
+ * @param analysis - Parsed @expose directive information
+ * @param target - Target identifier
+ * @param reachableTypes - Set of reachable type names
+ * @returns Filtered Object type definition, or null if fields are empty
  */
 function filterObjectTypeDefinition(
   typeDef: ObjectTypeDefinitionNode,
@@ -167,12 +166,12 @@ function filterObjectTypeDefinition(
 ): ObjectTypeDefinitionNode | null {
   const filteredFields = filterObjectFields(typeDef, analysis, target);
 
-  // フィールドが空の場合は型を削除
+  // Remove type if fields are empty
   if (!filteredFields || filteredFields.length === 0) {
     return null;
   }
 
-  // implements している Interface も到達可能なもののみ残す
+  // Keep only reachable implemented interfaces
   const filteredInterfaces = typeDef.interfaces?.filter((iface) =>
     reachableTypes.has(iface.name.value)
   );
@@ -185,13 +184,13 @@ function filterObjectTypeDefinition(
 }
 
 /**
- * InterfaceTypeDefinition をフィルタリング
+ * Filters InterfaceTypeDefinition
  *
- * @param typeDef - Interface 型定義 AST ノード
- * @param analysis - パース済みの @expose ディレクティブ情報
- * @param target - 対象ターゲット
- * @param reachableTypes - 到達可能な型名の集合
- * @returns フィルタリング済みの Interface 型定義、またはフィールドが空の場合 null
+ * @param typeDef - Interface type definition AST node
+ * @param analysis - Parsed @expose directive information
+ * @param target - Target identifier
+ * @param reachableTypes - Set of reachable type names
+ * @returns Filtered Interface type definition, or null if fields are empty
  */
 function filterInterfaceTypeDefinition(
   typeDef: InterfaceTypeDefinitionNode,
@@ -201,12 +200,12 @@ function filterInterfaceTypeDefinition(
 ): InterfaceTypeDefinitionNode | null {
   const filteredFields = filterInterfaceFields(typeDef, analysis, target);
 
-  // フィールドが空の場合は型を削除
+  // Remove type if fields are empty
   if (!filteredFields || filteredFields.length === 0) {
     return null;
   }
 
-  // implements している Interface も到達可能なもののみ残す
+  // Keep only reachable implemented interfaces
   const filteredInterfaces = typeDef.interfaces?.filter((iface) =>
     reachableTypes.has(iface.name.value)
   );
@@ -219,12 +218,12 @@ function filterInterfaceTypeDefinition(
 }
 
 /**
- * InputObjectTypeDefinition をフィルタリング
+ * Filters InputObjectTypeDefinition
  *
- * @param typeDef - InputObject 型定義 AST ノード
- * @param analysis - パース済みの @expose ディレクティブ情報
- * @param target - 対象ターゲット
- * @returns フィルタリング済みの InputObject 型定義、またはフィールドが空の場合 null
+ * @param typeDef - InputObject type definition AST node
+ * @param analysis - Parsed @expose directive information
+ * @param target - Target identifier
+ * @returns Filtered InputObject type definition, or null if fields are empty
  */
 function filterInputObjectTypeDefinition(
   typeDef: InputObjectTypeDefinitionNode,
@@ -233,7 +232,7 @@ function filterInputObjectTypeDefinition(
 ): InputObjectTypeDefinitionNode | null {
   const filteredFields = filterInputObjectFields(typeDef, analysis, target);
 
-  // フィールドが空の場合は型を削除
+  // Remove type if fields are empty
   if (!filteredFields || filteredFields.length === 0) {
     return null;
   }
@@ -245,14 +244,14 @@ function filterInputObjectTypeDefinition(
 }
 
 /**
- * UnionTypeDefinition をフィルタリング
+ * Filters UnionTypeDefinition
  *
- * @param typeDef - Union 型定義 AST ノード
- * @param reachableTypes - 到達可能な型名の集合
- * @returns フィルタリング済みの Union 型定義、またはメンバーが空の場合 null
+ * @param typeDef - Union type definition AST node
+ * @param reachableTypes - Set of reachable type names
+ * @returns Filtered Union type definition, or null if members are empty
  *
  * @remarks
- * Union のメンバー型が到達不可能な場合は除外する
+ * Excludes union member types that are unreachable
  */
 function filterUnionTypeDefinition(
   typeDef: UnionTypeDefinitionNode,
@@ -262,12 +261,12 @@ function filterUnionTypeDefinition(
     return null;
   }
 
-  // 到達可能なメンバー型のみ残す
+  // Keep only reachable member types
   const filteredTypes = typeDef.types.filter((memberType) =>
     reachableTypes.has(memberType.name.value)
   );
 
-  // メンバーが空の場合は型を削除
+  // Remove type if members are empty
   if (filteredTypes.length === 0) {
     return null;
   }
@@ -279,20 +278,20 @@ function filterUnionTypeDefinition(
 }
 
 /**
- * DocumentNode の definitions をフィルタリング
+ * Filters definitions of DocumentNode
  *
  * @param documentNode - GraphQL AST DocumentNode
- * @param target - 対象ターゲット
- * @param reachableTypes - 到達可能な型名の集合
- * @param analysis - パース済みの @expose ディレクティブ情報
- * @returns フィルタリング済みの DefinitionNode 配列
+ * @param target - Target identifier
+ * @param reachableTypes - Set of reachable type names
+ * @param analysis - Parsed @expose directive information
+ * @returns Filtered DefinitionNode array
  *
  * @remarks
- * 以下のルールに基づいてフィルタリング:
- * 1. 到達不可能な型は除外
- * 2. Object/Interface/InputObject 型はフィールドレベルでフィルタリング
- * 3. Scalar/Enum/Union 型は到達可能であればそのまま含める
- * 4. Directive 定義は常に含める
+ * Filters based on the following rules:
+ * 1. Unreachable types are excluded
+ * 2. Object/Interface/InputObject types are filtered at field level
+ * 3. Scalar/Enum/Union types are included as-is if reachable
+ * 4. Directive definitions are always included
  */
 export function filterDefinitionsAST(
   documentNode: DocumentNode,
@@ -302,17 +301,17 @@ export function filterDefinitionsAST(
 ): DefinitionNode[] {
   return documentNode.definitions
     .map((def) => {
-      // Directive 定義はそのまま含める
+      // Include directive definitions as-is
       if (def.kind === "DirectiveDefinition") {
         return def;
       }
 
-      // Schema 定義は除外（buildASTSchema が自動生成）
+      // Exclude schema definition (buildASTSchema generates it automatically)
       if (def.kind === "SchemaDefinition") {
         return null;
       }
 
-      // 型定義以外はそのまま含める
+      // Include non-type definitions as-is
       if (
         def.kind !== "ObjectTypeDefinition" &&
         def.kind !== "InterfaceTypeDefinition" &&
@@ -324,18 +323,18 @@ export function filterDefinitionsAST(
         return def;
       }
 
-      // Root 型（Query/Mutation/Subscription）は常に含める（フィールドが空でも）
+      // Root types (Query/Mutation/Subscription) are always included (even if fields are empty)
       const isRootType =
         def.name.value === analysis.rootTypeNames.query ||
         def.name.value === analysis.rootTypeNames.mutation ||
         def.name.value === analysis.rootTypeNames.subscription;
 
-      // 到達不可能な型は除外（ただし Root 型は除く）
+      // Exclude unreachable types (except root types)
       if (!isRootType && !reachableTypes.has(def.name.value)) {
         return null;
       }
 
-      // Object 型のフィールドフィルタリング
+      // Field filtering for Object types
       if (def.kind === "ObjectTypeDefinition") {
         const filtered = filterObjectTypeDefinition(
           def,
@@ -344,7 +343,7 @@ export function filterDefinitionsAST(
           reachableTypes
         );
 
-        // Root 型の場合、フィールドが空でも型定義を保持
+        // For root types, keep type definition even if fields are empty
         if (isRootType && filtered === null) {
           return {
             ...def,
@@ -355,7 +354,7 @@ export function filterDefinitionsAST(
         return filtered;
       }
 
-      // Interface 型のフィールドフィルタリング
+      // Field filtering for Interface types
       if (def.kind === "InterfaceTypeDefinition") {
         return filterInterfaceTypeDefinition(
           def,
@@ -365,17 +364,17 @@ export function filterDefinitionsAST(
         );
       }
 
-      // InputObject 型のフィールドフィルタリング
+      // Field filtering for InputObject types
       if (def.kind === "InputObjectTypeDefinition") {
         return filterInputObjectTypeDefinition(def, analysis, target);
       }
 
-      // Union 型のメンバーフィルタリング
+      // Member filtering for Union types
       if (def.kind === "UnionTypeDefinition") {
         return filterUnionTypeDefinition(def, reachableTypes);
       }
 
-      // Scalar/Enum はそのまま含める
+      // Include Scalar/Enum as-is
       return def;
     })
     .filter((def) => def != null);

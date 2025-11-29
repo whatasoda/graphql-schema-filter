@@ -1,11 +1,11 @@
 /**
- * 共通型定義
+ * Common type definitions
  */
 
 import { z } from "zod";
 
 /**
- * 型レベルの exposure 情報
+ * Type-level exposure information
  */
 export interface TypeLevelExposureInfo {
   readonly typeName: string;
@@ -15,7 +15,7 @@ export interface TypeLevelExposureInfo {
 }
 
 /**
- * フィールドレベルの exposure 情報
+ * Field-level exposure information
  */
 export interface FieldLevelExposureInfo {
   readonly fieldName: string;
@@ -23,8 +23,8 @@ export interface FieldLevelExposureInfo {
 }
 
 /**
- * スキーマ解析結果
- * @expose ディレクティブのパース結果と型情報を含む
+ * Schema analysis result
+ * Contains parsed @expose directive results and type information
  */
 export interface SchemaAnalysis {
   readonly rootTypeNames: {
@@ -37,18 +37,18 @@ export interface SchemaAnalysis {
 }
 
 /**
- * スキーマフィルタリングのオプション
+ * Schema filtering options
  */
 export interface FilterSchemaOptions {
   /**
-   * 対象ターゲット
+   * Target identifier
    */
   target: string;
 }
 
 /**
- * FilterSchemaOptions の Zod スキーマ
- * 入力検証に使用
+ * Zod schema for FilterSchemaOptions
+ * Used for input validation
  */
 export const FilterSchemaOptionsSchema = z.object({
   target: z.string().min(1, "target must be a non-empty string"),

@@ -1,20 +1,19 @@
-# graphql-schema-extract
+# graphql-schema-filter
 
 GraphQL schema filtering library with `@expose` directive support for target-based access control.
 
 ## Features
 
-- 🔒 **Role-based filtering**: Filter GraphQL schemas based on `@expose` directive
-- 🔍 **Type reachability**: Automatically includes all referenced types
-- 🎯 **Auto-discovery**: Infer entry points from `@expose` annotations
-- 📦 **Zero runtime overhead**: Pure schema transformation
-- 🔧 **Highly configurable**: Customize filtering behavior
+- **Target-based filtering**: Filter GraphQL schemas based on `@expose` directive
+- **Type reachability**: Automatically includes all referenced types via BFS traversal
+- **Auto-discovery**: Infer entry points from `@expose` annotations on Query/Mutation fields
+- **Zero runtime overhead**: Pure schema transformation at build/startup time
+- **Directive definitions included**: Import ready-to-use directive definitions
 
 ## Installation
 
 ```bash
-# This library is currently private
-# Future: npm install graphql-schema-extract
+npm install @graphql-schema-filter/core graphql zod
 ```
 
 ## Quick Start
@@ -54,26 +53,26 @@ input CreateUserInput {
 ### 2. Filter schema for a specific target
 
 ```typescript
-import { filterSchemaForTarget } from "graphql-schema-extract";
+import { filterSchema } from "@graphql-schema-filter/core";
 import { buildSchema } from "graphql";
 
 const schema = buildSchema(/* your schema */);
 
-const filteredSchema = await filterSchemaForTarget(schema, {
+const filteredSchema = await filterSchema(schema, {
   target: "readonly",
-  autoInferEntryPoints: true,
 });
 ```
 
 ## How It Works
 
-The library implements a type reachability closure algorithm:
+The library implements a 6-phase filtering pipeline:
 
-1. **Parse @expose directives** from your GraphQL schema
-2. **Infer entry points** - Query/Mutation fields marked with `@expose` for the target
-3. **Compute reachability** - BFS traversal to find all types referenced from entry points
-4. **Filter fields** - Remove fields not exposed to the target
-5. **Rebuild schema** - Create new GraphQL schema with filtered types
+1. **Parse** - Extract `@expose` directives from your GraphQL schema
+2. **Infer Entry Points** - Identify Query/Mutation fields exposed to the target
+3. **Compute Reachability** - BFS traversal to find all types referenced from entry points
+4. **Convert to AST** - Transform schema to AST for manipulation
+5. **Filter AST** - Remove unreachable types and unexposed fields
+6. **Build Schema** - Create new GraphQL schema from filtered AST
 
 ## @expose Directive Rules
 
@@ -98,7 +97,7 @@ type User {
 
 **Default behavior:** Fields without `@expose` are **included** (auto-exposed). Use `@expose` to:
 - **Restrict** fields to specific targets: `@expose(tags: ["admin"])`
-- **Exclude** fields from all roles: `@expose(tags: [])`
+- **Exclude** fields from all targets: `@expose(tags: [])`
 
 ### Query/Mutation Root Types - Explicit Required
 
@@ -154,79 +153,54 @@ input CreateUserInput {
 }
 ```
 
-**Default behavior:** Fields without `@expose` are **included**. Use `@expose` only to **restrict** specific fields to certain roles.
+**Default behavior:** Fields without `@expose` are **included**. Use `@expose` only to **restrict** specific fields to certain targets.
 
 ## API Reference
 
-### `filterSchemaForTarget(schema, options)`
+### `filterSchema(schema, options)`
 
 Main function to filter a GraphQL schema for a specific target.
 
+```typescript
+import { filterSchema } from "@graphql-schema-filter/core";
+
+const filteredSchema = await filterSchema(schema, {
+  target: "admin",
+});
+```
+
 **Parameters:**
 
-- `schema`: GraphQLSchema - The schema to filter
-- `options`: FilterSchemaOptions
-  - `target`: string - Target name (e.g., "readonly", "admin")
-  - `autoInferEntryPoints?`: boolean - Auto-detect entry points from @expose (default: true)
-  - `entryPoints?`: object - Manual entry points (queries, mutations, types)
-  - `reachabilityConfig?`: Partial<ReachabilityConfig> - Reachability analysis options
-  - `filterConfig?`: Partial<SchemaFilterConfig> - Field retention options
+- `schema`: `GraphQLSchema` - The schema to filter
+- `options`: `FilterSchemaOptions`
+  - `target`: `string` - Target identifier (e.g., "readonly", "admin")
 
-**Returns:** Promise<GraphQLSchema>
+**Returns:** `Promise<GraphQLSchema>`
 
-### Classes
-
-#### `ReachabilityAnalyzer`
-
-Computes type reachability closure using BFS.
-
-#### `ExposeParser`
-
-Parses `@expose` directives from GraphQL schema AST.
-
-#### `SchemaFilter`
-
-Rebuilds GraphQL schema with filtered fields.
-
-## Configuration
-
-### ReachabilityConfig
+### Exported Types
 
 ```typescript
-{
-  // Include Interface implementations (default: true)
-  includeInterfaceImplementations: boolean;
-
-  // How to include referenced types (default: 'all')
-  includeReferenced: "all" | "args-only" | "none";
-}
+import type {
+  FilterSchemaOptions,
+  SchemaAnalysis,
+  TypeLevelExposureInfo,
+  FieldLevelExposureInfo,
+} from "@graphql-schema-filter/core";
 ```
 
-### SchemaFilterConfig
+### Directive Definitions
 
-```typescript
-{
-  // Field retention policy (default: 'exposed-only')
-  fieldRetention: "exposed-only" | "all-for-included-type";
-}
+The package includes a `directives.graphql` file with the directive definitions:
+
+```
+node_modules/@graphql-schema-filter/core/dist/directives.graphql
 ```
 
-## Examples
-
-See the [examples/](./examples/) directory:
-
-- `basic-usage.ts` - Simple schema filtering example
-- `nested-types.ts` - Nested type structures with filtering
-- `disable-auto-expose.ts` - Using @disableAutoExpose directive
-- `polymorphic-types.ts` - Interface and Union type handling
-
-Run examples:
+You can symlink this file to your project or copy the definitions to your schema as needed:
 
 ```bash
-bun example basic
-bun example nested
-bun example disable-auto-expose
-bun example polymorphic
+# Example: symlink to your schema directory
+ln -s node_modules/@graphql-schema-filter/core/dist/directives.graphql src/graphql/directives.graphql
 ```
 
 ## Development
@@ -235,14 +209,16 @@ bun example polymorphic
 # Install dependencies
 bun install
 
-# Run examples
-bun run example:basic
+# Build
+bun run build
+
+# Run tests
+bun run test
+
+# Type check
+bun run typecheck
 ```
 
 ## License
 
 MIT
-
-## Credits
-
-This library implements the type reachability closure algorithm for GraphQL schema filtering with target-based access control.

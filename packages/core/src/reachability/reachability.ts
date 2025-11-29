@@ -1,8 +1,8 @@
 /**
- * 型到達可能性クロージャアルゴリズム
+ * Type reachability closure algorithm
  *
- * 指定された開始点（Query/Mutation フィールド、Object 型）から、
- * 推移的に参照されるすべての型を収集する
+ * Collects all types transitively referenced from specified entry points
+ * (Query/Mutation fields, Object types)
  */
 
 import { GraphQLNamedType, GraphQLSchema } from "graphql";
@@ -11,21 +11,20 @@ import { traverseGraphQLType } from "./traverse";
 import { logger } from "../utils/logger";
 
 /**
- * 指定されたターゲットがフィールドにアクセス可能かを判定
+ * Determines whether the specified target can access a field
  *
- * ルール:
- * - フィールドに @expose がある場合、そのターゲットリストで判定
- * - フィールドに @expose がない場合:
- *   - Query/Mutation/Subscription 型: 非公開（除外）
- *   - @disableAutoExpose が付いた型: 非公開（除外）
- *   - その他の output type: 公開（デフォルト公開）
+ * Rules:
+ * - If the field has @expose, decision is based on its target list
+ * - If the field has no @expose:
+ *   - Query/Mutation/Subscription types: not exposed (excluded)
+ *   - Types with @disableAutoExpose: not exposed (excluded)
+ *   - Other output types: exposed (default public)
  *
- * @param schema - GraphQLスキーマ
- * @param parsed - パース済みの @expose ディレクティブ情報
- * @param typeName - 型名
- * @param fieldName - フィールド名
- * @param target - ターゲット名
- * @returns フィールドが公開されている場合は true
+ * @param analysis - Parsed @expose directive information
+ * @param typeName - Type name
+ * @param fieldName - Field name
+ * @param target - Target name
+ * @returns true if the field is exposed
  */
 export function isFieldExposed({
   analysis,
@@ -43,39 +42,38 @@ export function isFieldExposed({
     return false;
   }
 
-  // フィールドレベルの @expose をチェック
+  // Check field-level @expose
   const field = exposureInfo.fields.get(fieldName);
   if (field !== undefined) {
     return field.tags.includes(target);
   }
 
-  // @expose がない場合の判定
-  // Root 型または @disableAutoExpose が付いている型は除外
+  // Decision when no @expose is present
+  // Root types or types with @disableAutoExpose are excluded
   if (exposureInfo.isRootType || exposureInfo.isAutoExposeDisabled) {
     return false;
   }
 
-  // その他の output type はデフォルト公開
+  // Other output types are exposed by default
   return true;
 }
 
 /**
- * 到達可能な型名を yield する generator
+ * Generator that yields reachable type names
  *
- * @param schema - GraphQL スキーマ
- * @param target - 対象ターゲット
- * @param analysis - @expose ディレクティブの解析結果
- * @yields 到達可能な型名
+ * @param schema - GraphQL schema
+ * @param target - Target identifier
+ * @param analysis - Parsed @expose directive results
+ * @yields Reachable type names
  *
  * @remarks
- * BFS アルゴリズムを使用して、エントリーポイントから推移的に参照される
- * すべての型名を yield します。ターゲットに公開されていないフィールド経由の型は
- * 到達不能と判定されます。
+ * Uses BFS algorithm to yield all type names transitively referenced from
+ * entry points. Types referenced through fields not exposed to the target
+ * are considered unreachable.
  *
  * @public
- * Advanced API: generator を直接使用することで、early termination や
- * lazy evaluation が可能です。通常のユースケースでは `computeReachability` を
- * 使用してください。
+ * Advanced API: Using the generator directly enables early termination
+ * and lazy evaluation. For typical use cases, use `computeReachability`.
  */
 export function traverseReachableTypes({
   schema,
@@ -119,18 +117,18 @@ export function traverseReachableTypes({
 }
 
 /**
- * 型到達可能性を計算する
+ * Computes type reachability
  *
- * @param schema - GraphQLスキーマ
- * @param target - 対象ターゲット
- * @param analysis - @expose ディレクティブの解析結果
- * @returns 到達可能な型名の集合
+ * @param schema - GraphQL schema
+ * @param target - Target identifier
+ * @param analysis - Parsed @expose directive results
+ * @returns Set of reachable type names
  *
  * @remarks
- * BFSアルゴリズムを使用して、エントリーポイントから推移的に参照される
- * すべての型を収集します。内部で generator を使用しますが、外部 API は
- * 通常の Set を返す純粋関数です。
- * ターゲットに公開されていないフィールド経由の型は到達不能と判定されます。
+ * Uses BFS algorithm to collect all types transitively referenced from
+ * entry points. Uses a generator internally, but the external API is
+ * a pure function that returns a regular Set.
+ * Types referenced through fields not exposed to the target are considered unreachable.
  */
 export function computeReachability(
   schema: GraphQLSchema,

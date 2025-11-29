@@ -7,26 +7,20 @@ GraphQL schema filtering library with `@expose` directive support for target-bas
 - **Target-based filtering**: Filter GraphQL schemas based on `@expose` directives with tag-based access control
 - **Smart defaults**: Auto-expose output type fields, permissive input type handling, explicit Query/Mutation field control
 - **Type-safe**: Full TypeScript support with comprehensive type definitions
-- **Flexible**: Configurable reachability analysis and field retention policies
-- **Production-ready**: Built with rslib, dual format (ESM + CJS), with source maps and declaration files
+- **Zero config**: Simple API with sensible defaults
+- **Production-ready**: Dual format (ESM + CJS) with source maps and declaration files
 
 ## Installation
 
 ```bash
-npm install @graphql-schema-filter/core graphql
-# or
-yarn add @graphql-schema-filter/core graphql
-# or
-pnpm add @graphql-schema-filter/core graphql
-# or
-bun add @graphql-schema-filter/core graphql
+npm install @graphql-schema-filter/core graphql zod
 ```
 
 ## Quick Start
 
 ```typescript
 import { buildSchema } from "graphql";
-import { filterSchemaForTarget } from "@graphql-schema-filter/core";
+import { filterSchema } from "@graphql-schema-filter/core";
 
 const schema = buildSchema(`
   directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
@@ -45,33 +39,48 @@ const schema = buildSchema(`
 `);
 
 // Filter for readonly users
-const readonlySchema = await filterSchemaForTarget(schema, {
+const readonlySchema = await filterSchema(schema, {
   target: "readonly",
 });
 
 // Filter for admin users
-const adminSchema = await filterSchemaForTarget(schema, {
+const adminSchema = await filterSchema(schema, {
   target: "admin",
 });
 ```
 
 ## API
 
-### `filterSchemaForTarget(schema, options)`
+### `filterSchema(schema, options)`
 
 Main entry point for filtering GraphQL schemas.
 
 **Parameters:**
 
 - `schema: GraphQLSchema` - The GraphQL schema to filter
-- `options: FilterSchemaOptions` - Filtering options
+- `options: FilterSchemaOptions`
   - `target: string` - The target tag for filtering (e.g., "admin", "readonly")
-  - `autoInferEntryPoints?: boolean` - Auto-infer entry points from `@expose` directives (default: true)
-  - `entryPoints?: EntryPoint[]` - Manual entry point definitions
-  - `reachability?: ReachabilityConfig` - Reachability analysis configuration
-  - `fieldRetention?: FieldRetentionPolicy` - Field retention policy
 
 **Returns:** `Promise<GraphQLSchema>` - Filtered schema
+
+### Exported Types
+
+```typescript
+import type {
+  FilterSchemaOptions,
+  SchemaAnalysis,
+  TypeLevelExposureInfo,
+  FieldLevelExposureInfo,
+} from "@graphql-schema-filter/core";
+```
+
+### Directive Definitions
+
+The package includes a `directives.graphql` file at `dist/directives.graphql`. You can symlink this file to your project or copy the definitions to your schema as needed:
+
+```bash
+ln -s node_modules/@graphql-schema-filter/core/dist/directives.graphql src/graphql/directives.graphql
+```
 
 ## Directives
 
@@ -91,9 +100,9 @@ Disable automatic field exposure for a type (treat like Query/Mutation).
 directive @disableAutoExpose on OBJECT | INTERFACE
 ```
 
-## Advanced Usage
+## Documentation
 
-For detailed documentation, examples, and advanced configuration, please visit the [GitHub repository](https://github.com/whatasoda/graphql-schema-filter).
+For detailed documentation, examples, and advanced usage, please visit the [GitHub repository](https://github.com/whatasoda/graphql-schema-filter).
 
 ## License
 

@@ -247,9 +247,9 @@ describe("filterSchemaForTarget (integration)", () => {
     expect(checkType(filteredSchema, "Post")).toBe("exists");
   });
 
-  // SKIPPED: 理想的にはこのテストが通るべきだが、実装の複雑化に対して実用上のメリットが少ないためスキップ
-  // 現状の挙動: Node インターフェースが到達可能になると、すべての実装型（User, Post）が含まれる
-  // 理想の挙動: `implements` 宣言からの到達と、フィールド戻り値としての到達を区別し、後者の場合のみ全実装型を含める
+  // SKIPPED: Ideally this test should pass, but skipped due to low practical benefit vs implementation complexity
+  // Current behavior: When Node interface becomes reachable, all implementing types (User, Post) are included
+  // Ideal behavior: Distinguish between reaching via `implements` declaration and reaching via field return type; only include all implementations in the latter case
   test.skip("should exclude unreachable interface implementations when interface is only referenced via implements clause", async () => {
     const schema = buildSchema(`
       directive @expose(tags: [String!]!) on FIELD_DEFINITION
@@ -289,7 +289,7 @@ describe("filterSchemaForTarget (integration)", () => {
   });
 
   test("should include all interface implementations when interface is reachable", async () => {
-    // 現状の挙動をテスト: Node インターフェースが到達可能になると、すべての実装型が含まれる
+    // Tests current behavior: When Node interface becomes reachable, all implementing types are included
     const schema = buildSchema(`
       directive @expose(tags: [String!]!) on FIELD_DEFINITION
 

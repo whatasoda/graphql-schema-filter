@@ -1,3 +1,5 @@
+import { FormatSchemaOptions } from "./format-schema";
+
 export type LogLevel = "debug" | "info" | "warn" | "none";
 /**
  * Schema filtering options
@@ -15,6 +17,8 @@ export interface FilterSchemaOptions {
    * @default "none"
    */
   logLevel?: LogLevel;
+
+  formatOptions?: FormatSchemaOptions;
 }
 
 export const isValidLogLevel = (level: string): level is LogLevel => {

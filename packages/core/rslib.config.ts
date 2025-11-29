@@ -27,6 +27,7 @@ export default defineConfig({
     entry: {
       index: "./src/index.ts",
     },
+    exclude: ["**/*.test.ts"],
   },
   output: {
     target: "node",

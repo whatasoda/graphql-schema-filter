@@ -24,6 +24,7 @@
     "@graphql-tools/utils": "^10.5.4",
     "@rslib/core": "^0.18.2",
     "@types/bun": "latest",
+    "@types/node": "^24.10.1",
     "graphql": "^16.9.0",
     "typescript": "^5.9.3",
     "zod": "^4.1.13"

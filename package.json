@@ -1,6 +1,6 @@
 {
   "name": "graphql-schema-filter-workspace",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "GraphQL schema filtering library with @expose directive support",
   "private": true,
   "type": "module",

@@ -60,15 +60,46 @@ Main entry point for filtering GraphQL schemas.
 - `schema: GraphQLSchema` - The GraphQL schema to filter
 - `options: FilterSchemaOptions`
   - `target: string` - The target tag for filtering (e.g., "admin", "readonly")
-  - `logLevel: LogLevel` - Log level (e.g., "debug", "info", "warn", "none") (default: "none")
+  - `logLevel?: LogLevel` - Log level (e.g., "debug", "info", "warn", "none") (default: "none")
+  - `formatOptions?: FormatSchemaOptions` - Schema formatting options (default: alphabetical sorting)
 
 **Returns:** `GraphQLSchema` - Filtered schema
 
 ### Exported Types
 
 ```typescript
-import type { FilterSchemaOptions } from "@graphql-schema-filter/core";
+import type {
+  FilterSchemaOptions,
+  FormatSchemaOptions,
+  DefinitionsSortOptions,
+  SortFieldsOptions,
+} from "@graphql-schema-filter/core";
 ```
+
+### `FormatSchemaOptions`
+
+Controls the formatting of the filtered schema output.
+
+```typescript
+interface FormatSchemaOptions {
+  definitionsSort: DefinitionsSortOptions;
+  fieldsSort: SortFieldsOptions;
+}
+
+type DefinitionsSortOptions =
+  | { type: "alphabetical" }  // Sort by group then alphabetically
+  | { type: "none" };         // Preserve original order
+
+type SortFieldsOptions =
+  | { type: "alphabetical" }  // Sort fields alphabetically
+  | { type: "none" };         // Preserve original order
+```
+
+**Definition Groups (in order):**
+1. Root types (Query, Mutation, Subscription)
+2. Scalars
+3. Directives
+4. Named types (Object, Interface, Input, Union, Enum - sorted alphabetically)
 
 ### Directive Definitions
 

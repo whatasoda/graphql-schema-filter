@@ -36,11 +36,11 @@
     "directory": "packages/core"
   },
   "peerDependencies": {
-    "graphql": "^16.0.0"
+    "graphql": "^16.0.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@graphql-tools/utils": "^10.5.4",
     "graphql": "^16.9.0",
-    "typescript": "^5.9.3"
+    "zod": "^4.1.13"
   }
 }

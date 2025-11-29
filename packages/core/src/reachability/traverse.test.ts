@@ -87,8 +87,8 @@ describe("createTypeTraverserInternal", () => {
         (o) => o.source === "interfaceImplementedByObject"
       );
       expect(implementsOutputs.length).toBe(1);
-      expect(implementsOutputs[0].interfaceType.name).toBe("Node");
-      expect(implementsOutputs[0].typeName).toBe("User");
+      expect(implementsOutputs[0]?.interfaceType.name).toBe("Node");
+      expect(implementsOutputs[0]?.typeName).toBe("User");
     });
   });
 
@@ -168,15 +168,15 @@ describe("createTypeTraverserInternal", () => {
 
       const memberNames = outputs
         .filter((o) => o.source === "unionMember")
-        .map((o) => getNamedType(o.children[0]).name)
+        .map((o) => getNamedType(o.children[0]!).name)
         .sort();
       expect(memberNames).toEqual(["Post", "User"]);
 
       // Check structure
-      if (outputs[0].source === "unionMember") {
+      if (outputs[0]?.source === "unionMember") {
         expect(outputs[0].unionName).toBe("SearchResult");
         expect(outputs[0].children.length).toBe(1);
-        expect(outputs[0].children[0].name).toBe(
+        expect(outputs[0].children[0]!.name).toBe(
           getNamedType(outputs[0].memberType).name
         );
       }
@@ -219,7 +219,7 @@ describe("createTypeTraverserInternal", () => {
       expect(fieldNames).toEqual(["age", "email", "name"]);
 
       // Check parent
-      if (outputs[0].source === "inputField") {
+      if (outputs[0]?.source === "inputField") {
         expect(outputs[0].typeName).toBe("CreateUserInput");
       }
 

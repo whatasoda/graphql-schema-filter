@@ -37,7 +37,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/whatasoda/graphql-schema-filter.git",
-    "directory": "packages/core"
+    "directory": "packages/schema-first-approach"
   },
   "dependencies": {
     "@graphql-schema-filter/core": "workspace:*",

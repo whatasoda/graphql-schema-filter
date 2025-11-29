@@ -9,6 +9,7 @@
   "files": [],
   "references": [
     { "path": "tsconfig.editor.json" },
-    { "path": "packages/core/tsconfig.editor.json" }
+    { "path": "packages/core/tsconfig.editor.json" },
+    { "path": "packages/schema-first-approach/tsconfig.editor.json" }
   ]
 }

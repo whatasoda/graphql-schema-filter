@@ -10,10 +10,29 @@ GraphQL schema filtering library with `@expose` directive support for target-bas
 - **Zero runtime overhead**: Pure schema transformation at build/startup time
 - **Directive definitions included**: Import ready-to-use directive definitions
 
+## Packages
+
+This monorepo contains the following packages:
+
+| Package | Description |
+| ------- | ----------- |
+| [@graphql-schema-filter/core](./packages/core) | Core filtering library |
+| [@graphql-schema-filter/schema-first-approach](./packages/schema-first-approach) | File-based schema loading for schema-first projects |
+
 ## Installation
+
+### Core Package
 
 ```bash
 npm install @graphql-schema-filter/core graphql
+```
+
+### Schema-First Approach
+
+For projects using `.graphql` files (schema-first approach):
+
+```bash
+npm install @graphql-schema-filter/schema-first-approach graphql
 ```
 
 ## Quick Start

@@ -55,15 +55,15 @@ function attachSortKeyToDefinitionNode({
     const typeName = node.name.value;
 
     if (rootTypeNames.query === typeName) {
-      return { group: "root_types", sortKey: "query", node };
+      return { group: "root_types", sortKey: "0_query", node };
     }
 
     if (rootTypeNames.mutation === typeName) {
-      return { group: "root_types", sortKey: "mutation", node };
+      return { group: "root_types", sortKey: "1_mutation", node };
     }
 
     if (rootTypeNames.subscription === typeName) {
-      return { group: "root_types", sortKey: "subscription", node };
+      return { group: "root_types", sortKey: "2_subscription", node };
     }
 
     return { group: "named_types", sortKey: typeName, node };
@@ -123,7 +123,8 @@ export function sortDefinitions({
               (a, b) =>
                 GROUP_ORDER[a.group] - GROUP_ORDER[b.group] ||
                 a.sortKey.localeCompare(b.sortKey)
-            ),
+            )
+            .map((item) => item.node),
         };
       },
     });

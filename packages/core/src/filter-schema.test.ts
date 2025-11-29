@@ -35,7 +35,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "user",
     });
 
@@ -83,7 +83,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "admin",
     });
 
@@ -120,7 +120,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "admin",
     });
 
@@ -158,7 +158,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "user",
     });
 
@@ -192,7 +192,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const userSchema = await filterSchema(schema, {
+    const userSchema = filterSchema(schema, {
       target: "user",
     });
 
@@ -204,7 +204,7 @@ describe("filterSchemaForTarget (integration)", () => {
       "field-not-found"
     );
 
-    const adminSchema = await filterSchema(schema, {
+    const adminSchema = filterSchema(schema, {
       target: "admin",
     });
 
@@ -236,7 +236,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "user",
     });
 
@@ -274,7 +274,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "user",
     });
 
@@ -313,7 +313,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "user",
     });
 
@@ -351,7 +351,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "user",
     });
 
@@ -386,7 +386,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "user",
     });
 
@@ -426,7 +426,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "admin",
     });
 
@@ -450,7 +450,7 @@ describe("filterSchemaForTarget (integration)", () => {
       }
     `);
 
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "user",
     });
 

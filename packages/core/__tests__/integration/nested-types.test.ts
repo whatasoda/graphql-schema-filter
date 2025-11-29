@@ -53,7 +53,7 @@ describe("nested types and relations", () => {
   `);
 
   test("should filter schema for member target", async () => {
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "member",
     });
 
@@ -84,7 +84,7 @@ describe("nested types and relations", () => {
   });
 
   test("should filter schema for admin target", async () => {
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "admin",
     });
 
@@ -109,7 +109,7 @@ describe("nested types and relations", () => {
   });
 
   test("should filter schema for team-lead target", async () => {
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "team-lead",
     });
 
@@ -126,10 +126,10 @@ describe("nested types and relations", () => {
   });
 
   test("should have correct reachable types for each target", async () => {
-    const memberSchema = await filterSchema(schema, {
+    const memberSchema = filterSchema(schema, {
       target: "member",
     });
-    const adminSchema = await filterSchema(schema, {
+    const adminSchema = filterSchema(schema, {
       target: "admin",
     });
 
@@ -153,7 +153,7 @@ describe("nested types and relations", () => {
   });
 
   test("should handle self-referencing types correctly", async () => {
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "member",
     });
 

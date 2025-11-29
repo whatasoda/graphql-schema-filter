@@ -2,8 +2,6 @@
  * Common type definitions
  */
 
-import { z } from "zod";
-
 /**
  * Type-level exposure information
  */
@@ -45,11 +43,3 @@ export interface FilterSchemaOptions {
    */
   target: string;
 }
-
-/**
- * Zod schema for FilterSchemaOptions
- * Used for input validation
- */
-export const FilterSchemaOptionsSchema = z.object({
-  target: z.string().min(1, "target must be a non-empty string"),
-});

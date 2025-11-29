@@ -12,7 +12,6 @@ import {
   Kind,
 } from "graphql";
 import type { FilterSchemaOptions } from "./types";
-import { FilterSchemaOptionsSchema } from "./types";
 import {
   createSchemaAnalysis,
   debugSchemaAnalysis,
@@ -37,13 +36,15 @@ import { logger } from "./utils/logger";
  * 5. AST Filtering: Filter AST definitions by reachability and expose rules
  * 6. Schema Building: Build new schema from filtered AST
  */
-export async function filterSchema(
+export function filterSchema(
   schema: GraphQLSchema,
   options: FilterSchemaOptions
-): Promise<GraphQLSchema> {
+): GraphQLSchema {
   // Validate input
-  const validatedOptions = FilterSchemaOptionsSchema.parse(options);
-  const { target } = validatedOptions;
+  if (!options.target || typeof options.target !== "string") {
+    throw new Error("target must be a non-empty string");
+  }
+  const { target } = options;
 
   // Phase 1: Parse @expose directives
   const analysis = createSchemaAnalysis(schema);

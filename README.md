@@ -13,7 +13,7 @@ GraphQL schema filtering library with `@expose` directive support for target-bas
 ## Installation
 
 ```bash
-npm install @graphql-schema-filter/core graphql zod
+npm install @graphql-schema-filter/core graphql
 ```
 
 ## Quick Start
@@ -58,7 +58,7 @@ import { buildSchema } from "graphql";
 
 const schema = buildSchema(/* your schema */);
 
-const filteredSchema = await filterSchema(schema, {
+const filteredSchema = filterSchema(schema, {
   target: "readonly",
 });
 ```
@@ -164,7 +164,7 @@ Main function to filter a GraphQL schema for a specific target.
 ```typescript
 import { filterSchema } from "@graphql-schema-filter/core";
 
-const filteredSchema = await filterSchema(schema, {
+const filteredSchema = filterSchema(schema, {
   target: "admin",
 });
 ```
@@ -175,7 +175,7 @@ const filteredSchema = await filterSchema(schema, {
 - `options`: `FilterSchemaOptions`
   - `target`: `string` - Target identifier (e.g., "readonly", "admin")
 
-**Returns:** `Promise<GraphQLSchema>`
+**Returns:** `GraphQLSchema`
 
 ### Exported Types
 

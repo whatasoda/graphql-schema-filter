@@ -41,12 +41,10 @@
     "directory": "packages/core"
   },
   "peerDependencies": {
-    "graphql": "^16.0.0",
-    "zod": "^4.0.0"
+    "graphql": "^16.0.0"
   },
   "devDependencies": {
-    "graphql": "^16.9.0",
-    "zod": "^4.1.13"
+    "graphql": "^16.9.0"
   },
   "scripts": {
     "build": "rslib build"

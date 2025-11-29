@@ -42,7 +42,7 @@ describe("@disableAutoExpose directive", () => {
   `);
 
   test("should filter schema for public target", async () => {
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "public",
     });
 
@@ -77,7 +77,7 @@ describe("@disableAutoExpose directive", () => {
   });
 
   test("should filter schema for authenticated target", async () => {
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "authenticated",
     });
 
@@ -104,7 +104,7 @@ describe("@disableAutoExpose directive", () => {
   });
 
   test("should filter schema for admin target", async () => {
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "admin",
     });
 
@@ -134,7 +134,7 @@ describe("@disableAutoExpose directive", () => {
     const targets = ["public", "authenticated", "admin"];
 
     for (const target of targets) {
-      const filteredSchema = await filterSchema(schema, {
+      const filteredSchema = filterSchema(schema, {
         target,
       });
 
@@ -152,10 +152,10 @@ describe("@disableAutoExpose directive", () => {
   });
 
   test("should have correct UserQueries fields for each target", async () => {
-    const publicSchema = await filterSchema(schema, {
+    const publicSchema = filterSchema(schema, {
       target: "public",
     });
-    const authSchema = await filterSchema(schema, {
+    const authSchema = filterSchema(schema, {
       target: "authenticated",
     });
 

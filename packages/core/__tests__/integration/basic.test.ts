@@ -42,7 +42,7 @@ describe("basic usage", () => {
   `);
 
   test("should filter schema for readonly target", async () => {
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "readonly",
     });
 
@@ -71,7 +71,7 @@ describe("basic usage", () => {
   });
 
   test("should filter schema for admin target", async () => {
-    const filteredSchema = await filterSchema(schema, {
+    const filteredSchema = filterSchema(schema, {
       target: "admin",
     });
 
@@ -101,10 +101,10 @@ describe("basic usage", () => {
   });
 
   test("should have correct type counts", async () => {
-    const readonlySchema = await filterSchema(schema, {
+    const readonlySchema = filterSchema(schema, {
       target: "readonly",
     });
-    const adminSchema = await filterSchema(schema, {
+    const adminSchema = filterSchema(schema, {
       target: "admin",
     });
 
@@ -119,10 +119,10 @@ describe("basic usage", () => {
   });
 
   test("should have correct query field counts", async () => {
-    const readonlySchema = await filterSchema(schema, {
+    const readonlySchema = filterSchema(schema, {
       target: "readonly",
     });
-    const adminSchema = await filterSchema(schema, {
+    const adminSchema = filterSchema(schema, {
       target: "admin",
     });
 

@@ -8,8 +8,12 @@
     "packages/*"
   ],
   "scripts": {
+    "prepublish": "bun run scripts/prepublish.ts",
+    "publish-npm": "bun scripts/publish.ts",
+    "publish-npm:dry-run": "bun scripts/publish.ts --dry-run",
+    "publish-npm:provenance": "bun scripts/publish.ts --provenance",
     "typecheck": "tsc -b",
-    "build": "bun run --cwd packages/core build",
+    "build": "bun run --filter='@graphql-schema-filter/*' build",
     "test": "bun --conditions=development test",
     "sync-exports": "bun run scripts/sync-exports.ts"
   },
@@ -20,9 +24,11 @@
   "author": "Shota Hatada <shota.hatada@whatasoda.me>",
   "license": "MIT",
   "devDependencies": {
+    "@microsoft/api-extractor": "^7.55.1",
     "@rslib/core": "^0.18.2",
     "@types/bun": "latest",
     "@types/node": "^24.10.1",
+    "fast-glob": "^3.3.3",
     "graphql": "^16.9.0",
     "neverthrow": "^8.2.0",
     "typescript": "^5.9.3",

@@ -11,7 +11,8 @@ export default defineConfig({
         },
       },
       dts: {
-        bundle: false,
+        bundle: true,
+        autoExtension: true,
       },
     },
     {
@@ -21,11 +22,15 @@ export default defineConfig({
           root: "./dist",
         },
       },
-      dts: false,
+      dts: {
+        bundle: true,
+        autoExtension: true,
+      },
     },
   ],
   source: {
     entry: exports,
+    tsconfigPath: "./tsconfig.build.json",
     exclude: ["**/*.test.ts"],
   },
   output: {

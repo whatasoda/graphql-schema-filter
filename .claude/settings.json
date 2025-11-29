@@ -15,11 +15,14 @@
       "Bash(bun quality:*)",
       "Bash(bun typecheck:*)",
       "Bash(bun biome:check:*)",
+      "Bash(bun publish-npm:dry-run:*)",
       "Bash(bun run test:*)",
       "Bash(bun run build:*)",
+      "Bash(bun run example:*)",
       "Bash(bun run quality:*)",
       "Bash(bun run typecheck:*)",
       "Bash(bun run biome:check:*)",
+      "Bash(bun run publish-npm:dry-run:*)",
       "Bash(DEBUG_REACHABILITY=1 bun example:*)",
       "Bash(DEBUG_EXPOSE_PARSER=1 bun example:*)",
       "Bash(DEBUG_TYPE_FILTERING=1 bun example:*)",
@@ -73,7 +76,11 @@
       "Bash(DEBUG_EXPOSE_PARSER=1 bun test:*)",
       "Bash(DEBUG_TYPE_FILTERING=1 bun test:*)",
       "Bash(DEBUG_FIELD_FILTERING=1 bun test:*)",
-      "Bash(bun build:*)"
+      "Bash(bun build:*)",
+      "Bash(bun publish-npm:*)",
+      "Bash(bun publish-npm:provenance:*)",
+      "Bash(bun run publish-npm:*)",
+      "Bash(bun run publish-npm:provenance:*)"
     ],
     "ask": []
   }

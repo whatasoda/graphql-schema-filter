@@ -28,7 +28,11 @@
     "rbac",
     "directive"
   ],
-  "author": "Shota Hatada <shota.hatada@whatasoda.me>",
+  "author": {
+    "name": "Shota Hatada",
+    "email": "shota.hatada@whatasoda.me",
+    "url": "https://github.com/whatasoda"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -42,5 +46,8 @@
   "devDependencies": {
     "graphql": "^16.9.0",
     "zod": "^4.1.13"
+  },
+  "scripts": {
+    "build": "rslib build"
   }
 }

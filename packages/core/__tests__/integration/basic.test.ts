@@ -130,6 +130,7 @@ describe("basic usage", () => {
     const adminQueryFields = getQueryFieldNames(adminSchema);
 
     expect(readonlyQueryFields).toEqual(["users"]);
-    expect(adminQueryFields).toEqual(["users", "adminUsers", "createUser"]);
+    // Fields are sorted alphabetically by default
+    expect(adminQueryFields).toEqual(["adminUsers", "createUser", "users"]);
   });
 });

@@ -22,6 +22,7 @@ import {
 import { computeReachability } from "./reachability/reachability";
 import { filterDefinitionsAST } from "./filter/ast-filter";
 import { logger } from "./utils/logger";
+import { formatSchema } from "./format-schema";
 
 /**
  * Filters a schema to generate a schema for the specified target
@@ -55,20 +56,26 @@ export function filterSchema(
   const ast = parse(sdl);
 
   // Phase 4 [AST Filtering]: Filter AST definitions by reachability and expose rules
-  const filteredDefinitions = filterDefinitionsAST(
+  const filteredDocument = filterDefinitionsAST(
     ast,
     target,
     reachableTypes,
     analysis
   );
 
-  // Phase 5 [Schema Building]: Build new schema from filtered AST
-  const filteredSchema = buildASTSchema({
-    kind: Kind.DOCUMENT,
-    definitions: filteredDefinitions,
+  const formattedDocument = formatSchema({
+    documentNode: filteredDocument,
+    rootTypeNames: analysis.rootTypeNames,
+    options: options.formatOptions ?? {
+      definitionsSort: { type: "alphabetical" },
+      fieldsSort: { type: "alphabetical" },
+    },
   });
+
+  // Phase 5 [Schema Building]: Build new schema from filtered AST
+  const outputSchema = buildASTSchema(formattedDocument);
 
   logger.info(`Filtered schema created for target "${target}"`);
 
-  return filteredSchema;
+  return outputSchema;
 }

@@ -315,14 +315,12 @@ export function filterDefinitionsAST(
   target: string,
   reachableTypes: Set<string>,
   analysis: SchemaAnalysis
-): DefinitionNode[] {
+): DocumentNode {
   const context: FilterVisitorContext = {
     target,
     reachableTypes,
     analysis,
   };
 
-  const filteredDocument = visit(documentNode, createFilterVisitor(context));
-
-  return [...filteredDocument.definitions];
+  return visit(documentNode, createFilterVisitor(context));
 }

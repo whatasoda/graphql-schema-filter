@@ -8,7 +8,7 @@
  */
 
 import { buildSchema, printSchema } from "graphql";
-import { filterSchemaForTarget } from "../src";
+import { filterSchemaForTarget } from "@graphql-schema-filter/core";
 
 // サンプルスキーマを定義
 const schema = buildSchema(`

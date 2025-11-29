@@ -10,22 +10,32 @@ GraphQL schema filtering library with `@expose` directive support for target-bas
 
 ## Development Environment
 
-**Package Manager:** Bun
+**Package Manager:** Bun with workspaces
 
 **Runtime:** Node.js
+
+**Build Tool:** rslib (Rsbuild-based library bundler)
 
 **Test Runner:** Bun
 
 **Language:** TypeScript with ESNext target
 
+**Workspace Structure:** Monorepo with `packages/*` and `examples/*`
+
 ## Common Commands
 
 ```bash
-# Install dependencies
+# Install dependencies (workspace root)
 bun install
+
+# Build core package
+bun run build
 
 # Run basic example
 bun example basic
+
+# Type check all packages
+bun run typecheck
 ```
 
 ## Core Architecture
@@ -34,7 +44,7 @@ The library implements a **3-phase filtering pipeline**:
 
 ### 1. Parse Phase (`ExposeParser`)
 
-**Location:** `src/parser/expose-parser.ts`
+**Location:** `packages/core/src/analysis/expose-parser.ts`
 
 Extracts `@expose` and `@disableAutoExpose` directives from GraphQL schema AST and builds two data structures:
 
@@ -58,7 +68,7 @@ Extracts `@expose` and `@disableAutoExpose` directives from GraphQL schema AST a
 
 ### 2. Reachability Analysis Phase (`ReachabilityAnalyzer`)
 
-**Location:** `src/analyzer/reachability.ts`
+**Location:** `packages/core/src/reachability/reachability.ts`
 
 Computes type reachability closure using **BFS traversal** from entry points:
 
@@ -77,7 +87,7 @@ Computes type reachability closure using **BFS traversal** from entry points:
 
 ### 3. Schema Filtering Phase (`SchemaFilter`)
 
-**Location:** `src/filter/schema-filter.ts`
+**Location:** `packages/core/src/filter/schema-filter.ts`
 
 Rebuilds GraphQL schema with only reachable types and exposed fields using a **2-pass approach**:
 
@@ -96,9 +106,9 @@ Rebuilds GraphQL schema with only reachable types and exposed fields using a **2
 - Construct root types using filtered type references from Pass 1
 - Ensures type references are properly resolved
 
-### Main Entry Point (`filterSchemaForRole`)
+### Main Entry Point (`filterSchemaForTarget`)
 
-**Location:** `src/filter/filter-schema.ts`
+**Location:** `packages/core/src/filter/filter-schema.ts`
 
 Orchestrates the 3-phase pipeline:
 
@@ -118,18 +128,35 @@ Orchestrates the 3-phase pipeline:
 ## Code Organization
 
 ```
-src/
-├── index.ts                    # Public API exports
-├── types.ts                    # Shared TypeScript interfaces
-├── parser/
-│   └── expose-parser.ts        # @expose directive parsing
-├── analyzer/
-│   └── reachability.ts         # Type reachability BFS algorithm
-├── filter/
-│   ├── filter-schema.ts        # Main entry point & orchestration
-│   └── schema-filter.ts        # Schema rebuilding with filtering
-└── utils/
-    └── type-utils.ts           # GraphQL type manipulation helpers
+packages/
+└── core/                       # Main package (@graphql-schema-filter/core)
+    ├── src/
+    │   ├── index.ts                    # Public API exports
+    │   ├── types.ts                    # Shared TypeScript interfaces
+    │   ├── analysis/
+    │   │   ├── schema-analysis.ts      # Schema analysis & directive parsing
+    │   │   └── expose-parser.ts        # @expose directive parsing
+    │   ├── reachability/
+    │   │   └── reachability.ts         # Type reachability BFS algorithm
+    │   ├── filter/
+    │   │   ├── filter-schema.ts        # Main entry point & orchestration
+    │   │   ├── schema-filter.ts        # Schema rebuilding with filtering
+    │   │   └── ast-filter.ts           # AST-level filtering
+    │   └── utils/
+    │       └── type-utils.ts           # GraphQL type manipulation helpers
+    ├── dist/                   # Built files (ESM + CJS + DTS)
+    ├── package.json            # Package metadata & exports
+    ├── rslib.config.ts         # Build configuration
+    └── tsconfig.json           # TypeScript configuration
+
+examples/
+└── basic/                      # Basic usage example
+    ├── src/
+    │   └── index.ts
+    └── package.json
+
+scripts/
+└── example.ts                  # Example runner script
 ```
 
 ## Important Implementation Notes

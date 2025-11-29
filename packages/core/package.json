@@ -1,0 +1,48 @@
+{
+  "name": "@graphql-schema-filter/core",
+  "version": "0.1.0",
+  "description": "GraphQL schema filtering library with @expose directive support for target-based access control",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rslib build",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "graphql",
+    "schema",
+    "filtering",
+    "access-control",
+    "rbac",
+    "directive"
+  ],
+  "author": "Shota Hatada <shota.hatada@whatasoda.me>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/whatasoda/graphql-schema-filter.git",
+    "directory": "packages/core"
+  },
+  "peerDependencies": {
+    "graphql": "^16.0.0"
+  },
+  "devDependencies": {
+    "@graphql-tools/utils": "^10.5.4",
+    "graphql": "^16.9.0",
+    "typescript": "^5.9.3"
+  }
+}

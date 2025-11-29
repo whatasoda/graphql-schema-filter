@@ -1,14 +1,15 @@
 {
-  "name": "graphql-schema-filter",
+  "name": "graphql-schema-filter-workspace",
   "version": "0.1.0",
   "description": "GraphQL schema filtering library with @expose directive support",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "exports": {
-    ".": "./src/index.ts"
-  },
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
   "scripts": {
+    "build": "bun run --cwd packages/core build",
     "example": "bun run scripts/example.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
@@ -19,11 +20,9 @@
   ],
   "author": "Shota Hatada <shota.hatada@whatasoda.me>",
   "license": "MIT",
-  "peerDependencies": {
-    "graphql": "^16.0.0"
-  },
   "devDependencies": {
     "@graphql-tools/utils": "^10.5.4",
+    "@rslib/core": "^0.18.2",
     "@types/bun": "latest",
     "graphql": "^16.9.0",
     "typescript": "^5.9.3",

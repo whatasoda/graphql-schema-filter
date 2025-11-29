@@ -1,10 +1,12 @@
 import { describe, test, expect } from "bun:test";
-import {
-  buildSchema,
-  printSchema,
-  type GraphQLObjectType,
-} from "graphql";
+import { buildSchema } from "graphql";
 import { filterSchemaForTarget } from "../../src";
+import {
+  checkType,
+  checkField,
+  checkInterface,
+  schemaContains,
+} from "../helpers";
 
 describe("polymorphic types (Interface and Union)", () => {
   const schema = buildSchema(`
@@ -63,53 +65,63 @@ describe("polymorphic types (Interface and Union)", () => {
     const filteredSchema = await filterSchemaForTarget(schema, {
       target: "public",
     });
-    const filteredSchemaStr = printSchema(filteredSchema);
 
     // Query: search and node should be included, adminContent should not
-    expect(filteredSchemaStr).toContain("search(query: String!): [SearchResult!]!");
-    expect(filteredSchemaStr).toContain("node(id: ID!): Node");
-    expect(filteredSchemaStr).not.toContain("adminContent:");
+    expect(
+      schemaContains(filteredSchema, "search(query: String!): [SearchResult!]!")
+    ).toBe(true);
+    expect(schemaContains(filteredSchema, "node(id: ID!): Node")).toBe(true);
+    expect(checkField(filteredSchema, "Query", "adminContent")).toBe(
+      "field-not-found"
+    );
 
     // SearchResult union should be included with all members
-    expect(filteredSchemaStr).toContain("union SearchResult");
-    expect(filteredSchemaStr).toContain("Article");
-    expect(filteredSchemaStr).toContain("Comment");
-    expect(filteredSchemaStr).toContain("Video");
+    expect(checkType(filteredSchema, "SearchResult")).toBe("exists");
+    expect(checkType(filteredSchema, "Article")).toBe("exists");
+    expect(checkType(filteredSchema, "Comment")).toBe("exists");
+    expect(checkType(filteredSchema, "Video")).toBe("exists");
 
     // Node interface should be included
-    expect(filteredSchemaStr).toContain("interface Node");
+    expect(checkType(filteredSchema, "Node")).toBe("exists");
 
     // Article: draft should not be included for public
-    expect(filteredSchemaStr).not.toContain("draft:");
+    expect(checkField(filteredSchema, "Article", "draft")).toBe(
+      "field-not-found"
+    );
 
     // Comment: reportCount should not be included for public
-    expect(filteredSchemaStr).not.toContain("reportCount:");
+    expect(checkField(filteredSchema, "Comment", "reportCount")).toBe(
+      "field-not-found"
+    );
 
     // Video: rawFile should not be included for public
-    expect(filteredSchemaStr).not.toContain("rawFile:");
+    expect(checkField(filteredSchema, "Video", "rawFile")).toBe(
+      "field-not-found"
+    );
   });
 
   test("should filter schema for admin target", async () => {
     const filteredSchema = await filterSchemaForTarget(schema, {
       target: "admin",
     });
-    const filteredSchemaStr = printSchema(filteredSchema);
 
     // adminContent should be included
-    expect(filteredSchemaStr).toContain("adminContent: [Content!]!");
+    expect(schemaContains(filteredSchema, "adminContent: [Content!]!")).toBe(
+      true
+    );
 
     // Content interface should be included with internal field
-    expect(filteredSchemaStr).toContain("interface Content");
-    expect(filteredSchemaStr).toContain("internal: String");
+    expect(checkType(filteredSchema, "Content")).toBe("exists");
+    expect(checkField(filteredSchema, "Content", "internal")).toBe("exists");
 
     // Article: draft should be included for admin
-    expect(filteredSchemaStr).toContain("draft: String");
+    expect(checkField(filteredSchema, "Article", "draft")).toBe("exists");
 
     // Comment: reportCount should be included for admin
-    expect(filteredSchemaStr).toContain("reportCount: Int");
+    expect(checkField(filteredSchema, "Comment", "reportCount")).toBe("exists");
 
     // Video: rawFile should be included for admin
-    expect(filteredSchemaStr).toContain("rawFile: String");
+    expect(checkField(filteredSchema, "Video", "rawFile")).toBe("exists");
   });
 
   test("should include all union members when union is reachable", async () => {
@@ -117,15 +129,11 @@ describe("polymorphic types (Interface and Union)", () => {
       target: "public",
     });
 
-    const types = Object.keys(filteredSchema.getTypeMap()).filter(
-      (name) => !name.startsWith("__")
-    );
-
     // All union members should be included
-    expect(types).toContain("SearchResult");
-    expect(types).toContain("Article");
-    expect(types).toContain("Comment");
-    expect(types).toContain("Video");
+    expect(checkType(filteredSchema, "SearchResult")).toBe("exists");
+    expect(checkType(filteredSchema, "Article")).toBe("exists");
+    expect(checkType(filteredSchema, "Comment")).toBe("exists");
+    expect(checkType(filteredSchema, "Video")).toBe("exists");
   });
 
   test("should include interfaces when implementations are reachable", async () => {
@@ -133,36 +141,28 @@ describe("polymorphic types (Interface and Union)", () => {
       target: "public",
     });
 
-    const types = Object.keys(filteredSchema.getTypeMap()).filter(
-      (name) => !name.startsWith("__")
-    );
-
     // Node interface should be included (Article and Comment implement it)
-    expect(types).toContain("Node");
+    expect(checkType(filteredSchema, "Node")).toBe("exists");
 
     // Content interface should be included (Article and Video implement it)
-    expect(types).toContain("Content");
+    expect(checkType(filteredSchema, "Content")).toBe("exists");
   });
 
   test("should preserve interface implementations on types", async () => {
     const filteredSchema = await filterSchemaForTarget(schema, {
       target: "public",
     });
-    const filteredSchemaStr = printSchema(filteredSchema);
 
     // Article should still implement both interfaces
-    expect(filteredSchemaStr).toContain("type Article implements Node & Content");
+    expect(
+      schemaContains(filteredSchema, "type Article implements Node & Content")
+    ).toBe(true);
 
-    // Verify via schema API
-    const articleType = filteredSchema.getType("Article") as
-      | GraphQLObjectType
-      | undefined;
-    if (articleType && "getInterfaces" in articleType) {
-      const interfaces = articleType.getInterfaces();
-      const interfaceNames = interfaces.map((i) => i.name);
-      expect(interfaceNames).toContain("Node");
-      expect(interfaceNames).toContain("Content");
-    }
+    // Verify via helper
+    expect(checkInterface(filteredSchema, "Article", "Node")).toBe("implements");
+    expect(checkInterface(filteredSchema, "Article", "Content")).toBe(
+      "implements"
+    );
   });
 
   test("should have correct type counts for each target", async () => {
@@ -173,23 +173,16 @@ describe("polymorphic types (Interface and Union)", () => {
       target: "admin",
     });
 
-    const publicTypes = Object.keys(publicSchema.getTypeMap()).filter(
-      (name) => !name.startsWith("__")
-    );
-    const adminTypes = Object.keys(adminSchema.getTypeMap()).filter(
-      (name) => !name.startsWith("__")
-    );
-
     // public: has SearchResult, Node, Content (via search and node queries)
-    expect(publicTypes).toContain("Node");
-    expect(publicTypes).toContain("Content");
-    expect(publicTypes).toContain("SearchResult");
+    expect(checkType(publicSchema, "Node")).toBe("exists");
+    expect(checkType(publicSchema, "Content")).toBe("exists");
+    expect(checkType(publicSchema, "SearchResult")).toBe("exists");
 
     // admin: has Node, Content (via adminContent query), but NOT SearchResult
     // because search query is only exposed to "public"
-    expect(adminTypes).toContain("Node");
-    expect(adminTypes).toContain("Content");
+    expect(checkType(adminSchema, "Node")).toBe("exists");
+    expect(checkType(adminSchema, "Content")).toBe("exists");
     // SearchResult is NOT included for admin (search is only exposed to public)
-    expect(adminTypes).not.toContain("SearchResult");
+    expect(checkType(adminSchema, "SearchResult")).toBe("not-found");
   });
 });

@@ -1,6 +1,13 @@
 import { describe, test, expect } from "bun:test";
-import { buildSchema, printSchema } from "graphql";
+import { buildSchema } from "graphql";
 import { filterSchemaForTarget } from "../../src";
+import {
+  checkType,
+  checkField,
+  getVisibleTypeNames,
+  getQueryFieldNames,
+  schemaContains,
+} from "../helpers";
 
 describe("basic usage", () => {
   const schema = buildSchema(`
@@ -38,49 +45,54 @@ describe("basic usage", () => {
     const filteredSchema = await filterSchemaForTarget(schema, {
       target: "readonly",
     });
-    const filteredSchemaStr = printSchema(filteredSchema);
 
     // Query: only users should be included
-    expect(filteredSchemaStr).toContain("users: [User!]!");
-    expect(filteredSchemaStr).not.toContain("adminUsers:");
-    expect(filteredSchemaStr).not.toContain("createUser:");
+    expect(schemaContains(filteredSchema, "users: [User!]!")).toBe(true);
+    expect(checkField(filteredSchema, "Query", "adminUsers")).toBe(
+      "field-not-found"
+    );
+    expect(checkField(filteredSchema, "Query", "createUser")).toBe(
+      "field-not-found"
+    );
 
     // User: should include default fields, exclude admin-only and explicitly excluded
-    expect(filteredSchemaStr).toContain("id: ID!");
-    expect(filteredSchemaStr).toContain("name: String!");
-    expect(filteredSchemaStr).toContain("email: String!");
-    expect(filteredSchemaStr).not.toContain("salary:");
-    expect(filteredSchemaStr).not.toContain("password:");
+    expect(checkField(filteredSchema, "User", "id")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "name")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "email")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "salary")).toBe("field-not-found");
+    expect(checkField(filteredSchema, "User", "password")).toBe(
+      "field-not-found"
+    );
 
     // CreateUserInput should not be reachable
-    expect(filteredSchemaStr).not.toContain("CreateUserInput");
+    expect(checkType(filteredSchema, "CreateUserInput")).toBe("not-found");
   });
 
   test("should filter schema for admin target", async () => {
     const filteredSchema = await filterSchemaForTarget(schema, {
       target: "admin",
     });
-    const filteredSchemaStr = printSchema(filteredSchema);
 
     // Query: all fields should be included
-    expect(filteredSchemaStr).toContain("users: [User!]!");
-    expect(filteredSchemaStr).toContain("adminUsers: [User!]!");
-    expect(filteredSchemaStr).toContain(
-      "createUser(input: CreateUserInput!): User!"
-    );
+    expect(schemaContains(filteredSchema, "users: [User!]!")).toBe(true);
+    expect(schemaContains(filteredSchema, "adminUsers: [User!]!")).toBe(true);
+    expect(
+      schemaContains(filteredSchema, "createUser(input: CreateUserInput!): User!")
+    ).toBe(true);
 
     // User: should include default fields and admin-only fields, exclude explicitly excluded
-    expect(filteredSchemaStr).toContain("id: ID!");
-    expect(filteredSchemaStr).toContain("name: String!");
-    expect(filteredSchemaStr).toContain("email: String!");
-    expect(filteredSchemaStr).toContain("salary: Float");
+    expect(checkField(filteredSchema, "User", "id")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "name")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "email")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "salary")).toBe("exists");
     // password is excluded from User type (@expose(tags: []))
-    // But we need to check in context - User type should not have password
 
     // CreateUserInput should be reachable and include appropriate fields
     // Note: password in CreateUserInput has no @expose, so it's included (permissive mode for input types)
-    expect(filteredSchemaStr).toContain("input CreateUserInput");
-    expect(filteredSchemaStr).toContain("salary: Float");
+    expect(checkType(filteredSchema, "CreateUserInput")).toBe("exists");
+    expect(checkField(filteredSchema, "CreateUserInput", "salary")).toBe(
+      "exists"
+    );
   });
 
   test("should have correct type counts", async () => {
@@ -91,18 +103,14 @@ describe("basic usage", () => {
       target: "admin",
     });
 
-    const readonlyTypes = Object.keys(readonlySchema.getTypeMap()).filter(
-      (name) => !name.startsWith("__")
-    );
-    const adminTypes = Object.keys(adminSchema.getTypeMap()).filter(
-      (name) => !name.startsWith("__")
-    );
+    const readonlyTypes = getVisibleTypeNames(readonlySchema);
+    const adminTypes = getVisibleTypeNames(adminSchema);
 
     // readonly: Query, User, ID, String, Boolean (standard scalars)
     // admin: Query, User, CreateUserInput, ID, String, Float, Boolean
     expect(adminTypes.length).toBeGreaterThan(readonlyTypes.length);
-    expect(adminTypes).toContain("CreateUserInput");
-    expect(readonlyTypes).not.toContain("CreateUserInput");
+    expect(checkType(adminSchema, "CreateUserInput")).toBe("exists");
+    expect(checkType(readonlySchema, "CreateUserInput")).toBe("not-found");
   });
 
   test("should have correct query field counts", async () => {
@@ -113,12 +121,8 @@ describe("basic usage", () => {
       target: "admin",
     });
 
-    const readonlyQueryFields = Object.keys(
-      readonlySchema.getQueryType()?.getFields() ?? {}
-    );
-    const adminQueryFields = Object.keys(
-      adminSchema.getQueryType()?.getFields() ?? {}
-    );
+    const readonlyQueryFields = getQueryFieldNames(readonlySchema);
+    const adminQueryFields = getQueryFieldNames(adminSchema);
 
     expect(readonlyQueryFields).toEqual(["users"]);
     expect(adminQueryFields).toEqual(["users", "adminUsers", "createUser"]);

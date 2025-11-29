@@ -1,6 +1,12 @@
 import { describe, test, expect } from "bun:test";
-import { buildSchema, printSchema } from "graphql";
+import { buildSchema } from "graphql";
 import { filterSchemaForTarget } from "../../src";
+import {
+  checkType,
+  checkField,
+  getVisibleTypeNames,
+  schemaContains,
+} from "../helpers";
 
 describe("nested types and relations", () => {
   const schema = buildSchema(`
@@ -50,62 +56,71 @@ describe("nested types and relations", () => {
     const filteredSchema = await filterSchemaForTarget(schema, {
       target: "member",
     });
-    const filteredSchemaStr = printSchema(filteredSchema);
 
     // Query.organization should be included
-    expect(filteredSchemaStr).toContain("organization(id: ID!): Organization");
+    expect(
+      schemaContains(filteredSchema, "organization(id: ID!): Organization")
+    ).toBe(true);
 
     // Organization: teams should be included, billing should not
-    expect(filteredSchemaStr).toContain("teams: [Team!]!");
-    expect(filteredSchemaStr).not.toContain("billing:");
+    expect(schemaContains(filteredSchema, "teams: [Team!]!")).toBe(true);
+    expect(checkField(filteredSchema, "Organization", "billing")).toBe(
+      "field-not-found"
+    );
 
     // Team: members should be included, privateNotes should not
-    expect(filteredSchemaStr).toContain("members: [User!]!");
-    expect(filteredSchemaStr).not.toContain("privateNotes:");
+    expect(schemaContains(filteredSchema, "members: [User!]!")).toBe(true);
+    expect(checkField(filteredSchema, "Team", "privateNotes")).toBe(
+      "field-not-found"
+    );
 
     // User should be fully included (all fields are default public)
-    expect(filteredSchemaStr).toContain("type User");
-    expect(filteredSchemaStr).toContain("manager: User");
-    expect(filteredSchemaStr).toContain("directReports: [User!]");
+    expect(checkType(filteredSchema, "User")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "manager")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "directReports")).toBe("exists");
 
     // BillingInfo should not be reachable
-    expect(filteredSchemaStr).not.toContain("BillingInfo");
+    expect(checkType(filteredSchema, "BillingInfo")).toBe("not-found");
   });
 
   test("should filter schema for admin target", async () => {
     const filteredSchema = await filterSchemaForTarget(schema, {
       target: "admin",
     });
-    const filteredSchemaStr = printSchema(filteredSchema);
 
     // Organization: billing should be included for admin
-    expect(filteredSchemaStr).toContain("billing: BillingInfo");
+    expect(checkField(filteredSchema, "Organization", "billing")).toBe("exists");
 
     // Team: privateNotes should be included for admin
-    expect(filteredSchemaStr).toContain("privateNotes: String");
+    expect(checkField(filteredSchema, "Team", "privateNotes")).toBe("exists");
 
     // BillingInfo should be reachable
-    expect(filteredSchemaStr).toContain("type BillingInfo");
-    expect(filteredSchemaStr).toContain("plan: String!");
-    expect(filteredSchemaStr).toContain("creditCard: String");
+    expect(checkType(filteredSchema, "BillingInfo")).toBe("exists");
+    expect(checkField(filteredSchema, "BillingInfo", "plan")).toBe("exists");
+    expect(checkField(filteredSchema, "BillingInfo", "creditCard")).toBe(
+      "exists"
+    );
     // internalNotes should be excluded (empty tags)
-    expect(filteredSchemaStr).not.toContain("internalNotes:");
+    expect(checkField(filteredSchema, "BillingInfo", "internalNotes")).toBe(
+      "field-not-found"
+    );
   });
 
   test("should filter schema for team-lead target", async () => {
     const filteredSchema = await filterSchemaForTarget(schema, {
       target: "team-lead",
     });
-    const filteredSchemaStr = printSchema(filteredSchema);
 
     // Team: privateNotes should be included for team-lead
-    expect(filteredSchemaStr).toContain("privateNotes: String");
+    expect(checkField(filteredSchema, "Team", "privateNotes")).toBe("exists");
 
     // Organization: billing should not be included (admin only)
-    expect(filteredSchemaStr).not.toContain("billing:");
+    expect(checkField(filteredSchema, "Organization", "billing")).toBe(
+      "field-not-found"
+    );
 
     // BillingInfo should not be reachable
-    expect(filteredSchemaStr).not.toContain("BillingInfo");
+    expect(checkType(filteredSchema, "BillingInfo")).toBe("not-found");
   });
 
   test("should have correct reachable types for each target", async () => {
@@ -116,24 +131,20 @@ describe("nested types and relations", () => {
       target: "admin",
     });
 
-    const memberTypes = Object.keys(memberSchema.getTypeMap()).filter(
-      (name) => !name.startsWith("__")
-    );
-    const adminTypes = Object.keys(adminSchema.getTypeMap()).filter(
-      (name) => !name.startsWith("__")
-    );
+    const memberTypes = getVisibleTypeNames(memberSchema);
+    const adminTypes = getVisibleTypeNames(adminSchema);
 
     // member: should not include BillingInfo
-    expect(memberTypes).not.toContain("BillingInfo");
-    expect(memberTypes).toContain("Organization");
-    expect(memberTypes).toContain("Team");
-    expect(memberTypes).toContain("User");
+    expect(checkType(memberSchema, "BillingInfo")).toBe("not-found");
+    expect(checkType(memberSchema, "Organization")).toBe("exists");
+    expect(checkType(memberSchema, "Team")).toBe("exists");
+    expect(checkType(memberSchema, "User")).toBe("exists");
 
     // admin: should include BillingInfo
-    expect(adminTypes).toContain("BillingInfo");
-    expect(adminTypes).toContain("Organization");
-    expect(adminTypes).toContain("Team");
-    expect(adminTypes).toContain("User");
+    expect(checkType(adminSchema, "BillingInfo")).toBe("exists");
+    expect(checkType(adminSchema, "Organization")).toBe("exists");
+    expect(checkType(adminSchema, "Team")).toBe("exists");
+    expect(checkType(adminSchema, "User")).toBe("exists");
 
     // admin should have more types than member
     expect(adminTypes.length).toBeGreaterThan(memberTypes.length);
@@ -143,13 +154,12 @@ describe("nested types and relations", () => {
     const filteredSchema = await filterSchemaForTarget(schema, {
       target: "member",
     });
-    const filteredSchemaStr = printSchema(filteredSchema);
 
     // Self-reference fields should be preserved
-    expect(filteredSchemaStr).toContain("manager: User");
-    expect(filteredSchemaStr).toContain("directReports: [User!]");
+    expect(checkField(filteredSchema, "User", "manager")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "directReports")).toBe("exists");
 
     // Should not cause infinite loops - schema should be valid
-    expect(filteredSchema.getType("User")).toBeDefined();
+    expect(checkType(filteredSchema, "User")).toBe("exists");
   });
 });

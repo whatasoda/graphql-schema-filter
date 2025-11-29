@@ -8,7 +8,7 @@
  */
 
 // メイン関数
-export { filterSchema as filterSchemaForTarget } from "./filter/filter-schema";
+export { filterSchema } from "./filter-schema";
 
 // Parser関連の純粋関数
 export {

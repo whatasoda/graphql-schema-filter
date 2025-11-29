@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import { filterSchemaForTarget } from "../../src";
+import { filterSchema } from "../../src";
 import {
   checkType,
   checkField,
@@ -42,7 +42,7 @@ describe("basic usage", () => {
   `);
 
   test("should filter schema for readonly target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "readonly",
     });
 
@@ -59,7 +59,9 @@ describe("basic usage", () => {
     expect(checkField(filteredSchema, "User", "id")).toBe("exists");
     expect(checkField(filteredSchema, "User", "name")).toBe("exists");
     expect(checkField(filteredSchema, "User", "email")).toBe("exists");
-    expect(checkField(filteredSchema, "User", "salary")).toBe("field-not-found");
+    expect(checkField(filteredSchema, "User", "salary")).toBe(
+      "field-not-found"
+    );
     expect(checkField(filteredSchema, "User", "password")).toBe(
       "field-not-found"
     );
@@ -69,7 +71,7 @@ describe("basic usage", () => {
   });
 
   test("should filter schema for admin target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "admin",
     });
 
@@ -77,7 +79,10 @@ describe("basic usage", () => {
     expect(schemaContains(filteredSchema, "users: [User!]!")).toBe(true);
     expect(schemaContains(filteredSchema, "adminUsers: [User!]!")).toBe(true);
     expect(
-      schemaContains(filteredSchema, "createUser(input: CreateUserInput!): User!")
+      schemaContains(
+        filteredSchema,
+        "createUser(input: CreateUserInput!): User!"
+      )
     ).toBe(true);
 
     // User: should include default fields and admin-only fields, exclude explicitly excluded
@@ -96,10 +101,10 @@ describe("basic usage", () => {
   });
 
   test("should have correct type counts", async () => {
-    const readonlySchema = await filterSchemaForTarget(schema, {
+    const readonlySchema = await filterSchema(schema, {
       target: "readonly",
     });
-    const adminSchema = await filterSchemaForTarget(schema, {
+    const adminSchema = await filterSchema(schema, {
       target: "admin",
     });
 
@@ -114,10 +119,10 @@ describe("basic usage", () => {
   });
 
   test("should have correct query field counts", async () => {
-    const readonlySchema = await filterSchemaForTarget(schema, {
+    const readonlySchema = await filterSchema(schema, {
       target: "readonly",
     });
-    const adminSchema = await filterSchemaForTarget(schema, {
+    const adminSchema = await filterSchema(schema, {
       target: "admin",
     });
 

@@ -40,11 +40,11 @@ bun run typecheck
 
 ## Core Architecture
 
-The library implements a **3-phase filtering pipeline**:
+The library implements a **6-phase filtering pipeline**:
 
-### 1. Parse Phase (`ExposeParser`)
+### 1. Parse Phase (Schema Analysis)
 
-**Location:** `packages/core/src/analysis/expose-parser.ts`
+**Location:** `packages/core/src/analysis/schema-analysis.ts`
 
 Extracts `@expose` and `@disableAutoExpose` directives from GraphQL schema AST and builds two data structures:
 
@@ -85,43 +85,42 @@ Computes type reachability closure using **BFS traversal** from entry points:
 3. Based on type kind (Object/Interface/Union/InputObject), adds referenced types to queue
 4. Continues until queue is empty
 
-### 3. Schema Filtering Phase (`SchemaFilter`)
+### 3. AST Conversion Phase
 
-**Location:** `packages/core/src/filter/schema-filter.ts`
+Converts the GraphQL schema to SDL string and parses it into an AST document for manipulation.
 
-Rebuilds GraphQL schema with only reachable types and exposed fields using a **2-pass approach**:
+### 4. AST Filtering Phase
 
-**Pass 1:** Build filtered type map
+**Location:** `packages/core/src/filter/ast-filter.ts`
 
-- Filter types by reachability
-- For Object/Interface types, filter fields based on `fieldRetention` policy:
-  - `'exposed-only'`: Only include fields exposed to the target (default)
-  - `'all-for-included-type'`: Include all fields if type is reachable
-- For InputObject types, use permissive mode:
-  - Fields with `@expose` are checked against the target
-  - Fields without `@expose` are included by default
+Filters AST definitions based on reachability and exposure rules:
 
-**Pass 2:** Build root types (Query/Mutation/Subscription)
+- Removes type definitions that are not reachable
+- Filters fields based on `@expose` directive rules
+- Preserves type wrappers (NonNull, List) correctly
 
-- Construct root types using filtered type references from Pass 1
-- Ensures type references are properly resolved
+### 5. Schema Building Phase
 
-### Main Entry Point (`filterSchemaForTarget`)
+Builds a new GraphQL schema from the filtered AST definitions using `buildASTSchema`.
 
-**Location:** `packages/core/src/filter/filter-schema.ts`
+### Main Entry Point (`filterSchema`)
 
-Orchestrates the 3-phase pipeline:
+**Location:** `packages/core/src/filter-schema.ts`
 
-1. Instantiate `ExposeParser` to extract directives
-2. Infer entry points from `@expose` directives (if `autoInferEntryPoints: true`)
-3. Use `ReachabilityAnalyzer` to compute reachable types
-4. Use `SchemaFilter` to rebuild schema with filtered types/fields
+Orchestrates the 6-phase pipeline:
+
+1. Parse `@expose` directives via schema analysis
+2. Infer entry points from `@expose` directives
+3. Compute reachable types via BFS traversal
+4. Convert schema to AST
+5. Filter AST definitions
+6. Build new schema from filtered AST
 
 ## Key Design Patterns
 
-**Two-pass schema construction:** The `SchemaFilter` uses a two-pass approach to avoid circular reference issues when rebuilding the schema. All non-root types are filtered first, then root types reference the filtered types.
+**AST-based filtering:** The library converts schema to AST, filters definitions, then rebuilds. This approach avoids circular reference issues inherent in direct schema manipulation.
 
-**Lazy parsing:** `ExposeParser` is instantiated once per `filterSchemaForRole` call and parses all directives upfront into maps for O(1) lookup during filtering.
+**Lazy parsing:** Schema analysis is performed once per `filterSchema` call, parsing all directives upfront into maps for O(1) lookup during filtering.
 
 **Closure computation:** The reachability algorithm implements mathematical closure - starting from entry points, it finds all types transitively reachable through the type graph until no new types are discovered.
 
@@ -133,40 +132,35 @@ packages/
     ├── src/
     │   ├── index.ts                    # Public API exports
     │   ├── types.ts                    # Shared TypeScript interfaces
+    │   ├── filter-schema.ts            # Main entry point & orchestration
     │   ├── analysis/
     │   │   ├── schema-analysis.ts      # Schema analysis & directive parsing
-    │   │   └── expose-parser.ts        # @expose directive parsing
+    │   │   ├── directive.ts            # Directive parsing utilities
+    │   │   └── exposure-info.ts        # Exposure info data structures
     │   ├── reachability/
-    │   │   └── reachability.ts         # Type reachability BFS algorithm
+    │   │   ├── reachability.ts         # Type reachability computation
+    │   │   └── traverse.ts             # Type graph traversal
     │   ├── filter/
-    │   │   ├── filter-schema.ts        # Main entry point & orchestration
-    │   │   ├── schema-filter.ts        # Schema rebuilding with filtering
     │   │   └── ast-filter.ts           # AST-level filtering
     │   └── utils/
-    │       └── type-utils.ts           # GraphQL type manipulation helpers
+    │       └── logger.ts               # Logging utilities
+    ├── __tests__/                      # Test files
+    │   └── integration/                # Integration tests
     ├── dist/                   # Built files (ESM + CJS + DTS)
     ├── package.json            # Package metadata & exports
     ├── rslib.config.ts         # Build configuration
-    ├── tsconfig.build.json     # TypeScript configuration for rslib build
-    └── tsconfig.editor.json    # TypeScript configuration for editor/IDE
-
-examples/
-└── basic/                      # Basic usage example
-    ├── src/
-    │   └── index.ts
-    └── package.json
+    └── tsconfig.*.json         # TypeScript configurations
 
 scripts/
 └── example.ts                  # Example runner script
 
 tsconfig.json                   # Root project references (tsc -b)
 tsconfig.base.json              # Shared TypeScript compiler options
-tsconfig.editor.json            # TypeScript configuration for scripts/
 ```
 
 ## Important Implementation Notes
 
-**Type wrapping:** When filtering fields, preserve GraphQL type wrappers (NonNull, List). The `resolveTypeReference` method in `SchemaFilter` handles unwrapping and re-wrapping types correctly.
+**Type wrapping:** When filtering fields, preserve GraphQL type wrappers (NonNull, List). The AST filtering preserves wrapper structure correctly.
 
 **AST node access:** `@expose` directives are extracted from `astNode.directives` on GraphQL type/field objects. The schema must be built from source (e.g., via `buildSchema`) to preserve AST nodes.
 

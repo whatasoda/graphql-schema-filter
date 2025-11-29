@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import { filterSchemaForTarget } from "../../src";
+import { filterSchema } from "../../src";
 import { checkType, checkField, schemaContains } from "../helpers";
 
 describe("@disableAutoExpose directive", () => {
@@ -42,20 +42,22 @@ describe("@disableAutoExpose directive", () => {
   `);
 
   test("should filter schema for public target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "public",
     });
 
     // Query.user should be included, Query.admin should not
     expect(checkField(filteredSchema, "Query", "user")).toBe("exists");
-    expect(checkField(filteredSchema, "Query", "admin")).toBe("field-not-found");
+    expect(checkField(filteredSchema, "Query", "admin")).toBe(
+      "field-not-found"
+    );
 
     // UserQueries: only profile should be included (public tag)
     // Note: me is exposed to "authenticated" only, not "public"
     expect(schemaContains(filteredSchema, "profile(id: ID!): User")).toBe(true);
-    expect(checkField(filteredSchema, "UserQueries", "internalUserLookup")).toBe(
-      "field-not-found"
-    );
+    expect(
+      checkField(filteredSchema, "UserQueries", "internalUserLookup")
+    ).toBe("field-not-found");
 
     // User type should be included
     expect(checkType(filteredSchema, "User")).toBe("exists");
@@ -69,13 +71,13 @@ describe("@disableAutoExpose directive", () => {
     expect(checkField(filteredSchema, "UserQueries", "me")).toBe(
       "field-not-found"
     );
-    expect(checkField(filteredSchema, "UserQueries", "internalUserLookup")).toBe(
-      "field-not-found"
-    );
+    expect(
+      checkField(filteredSchema, "UserQueries", "internalUserLookup")
+    ).toBe("field-not-found");
   });
 
   test("should filter schema for authenticated target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "authenticated",
     });
 
@@ -84,9 +86,9 @@ describe("@disableAutoExpose directive", () => {
 
     // UserQueries: me should be included (authenticated tag)
     expect(checkField(filteredSchema, "UserQueries", "me")).toBe("exists");
-    expect(checkField(filteredSchema, "UserQueries", "internalUserLookup")).toBe(
-      "field-not-found"
-    );
+    expect(
+      checkField(filteredSchema, "UserQueries", "internalUserLookup")
+    ).toBe("field-not-found");
 
     // User type should be included
     expect(checkType(filteredSchema, "User")).toBe("exists");
@@ -96,13 +98,13 @@ describe("@disableAutoExpose directive", () => {
     expect(checkField(filteredSchema, "UserQueries", "profile")).toBe(
       "field-not-found"
     );
-    expect(checkField(filteredSchema, "UserQueries", "internalUserLookup")).toBe(
-      "field-not-found"
-    );
+    expect(
+      checkField(filteredSchema, "UserQueries", "internalUserLookup")
+    ).toBe("field-not-found");
   });
 
   test("should filter schema for admin target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "admin",
     });
 
@@ -120,15 +122,19 @@ describe("@disableAutoExpose directive", () => {
 
     // Analytics type should be reachable
     expect(checkType(filteredSchema, "Analytics")).toBe("exists");
-    expect(checkField(filteredSchema, "Analytics", "totalUsers")).toBe("exists");
-    expect(checkField(filteredSchema, "Analytics", "activeUsers")).toBe("exists");
+    expect(checkField(filteredSchema, "Analytics", "totalUsers")).toBe(
+      "exists"
+    );
+    expect(checkField(filteredSchema, "Analytics", "activeUsers")).toBe(
+      "exists"
+    );
   });
 
   test("should exclude internalUserLookup for all targets", async () => {
     const targets = ["public", "authenticated", "admin"];
 
     for (const target of targets) {
-      const filteredSchema = await filterSchemaForTarget(schema, {
+      const filteredSchema = await filterSchema(schema, {
         target,
       });
 
@@ -146,16 +152,18 @@ describe("@disableAutoExpose directive", () => {
   });
 
   test("should have correct UserQueries fields for each target", async () => {
-    const publicSchema = await filterSchemaForTarget(schema, {
+    const publicSchema = await filterSchema(schema, {
       target: "public",
     });
-    const authSchema = await filterSchemaForTarget(schema, {
+    const authSchema = await filterSchema(schema, {
       target: "authenticated",
     });
 
     // Public target
     expect(checkField(publicSchema, "UserQueries", "profile")).toBe("exists");
-    expect(checkField(publicSchema, "UserQueries", "me")).toBe("field-not-found");
+    expect(checkField(publicSchema, "UserQueries", "me")).toBe(
+      "field-not-found"
+    );
     expect(checkField(publicSchema, "UserQueries", "internalUserLookup")).toBe(
       "field-not-found"
     );

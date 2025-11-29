@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import { filterSchemaForTarget } from "../../src";
+import { filterSchema } from "../../src";
 import {
   checkType,
   checkField,
@@ -62,7 +62,7 @@ describe("polymorphic types (Interface and Union)", () => {
   `);
 
   test("should filter schema for public target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "public",
     });
 
@@ -101,7 +101,7 @@ describe("polymorphic types (Interface and Union)", () => {
   });
 
   test("should filter schema for admin target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "admin",
     });
 
@@ -125,7 +125,7 @@ describe("polymorphic types (Interface and Union)", () => {
   });
 
   test("should include all union members when union is reachable", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "public",
     });
 
@@ -137,7 +137,7 @@ describe("polymorphic types (Interface and Union)", () => {
   });
 
   test("should include interfaces when implementations are reachable", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "public",
     });
 
@@ -149,7 +149,7 @@ describe("polymorphic types (Interface and Union)", () => {
   });
 
   test("should preserve interface implementations on types", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "public",
     });
 
@@ -159,17 +159,19 @@ describe("polymorphic types (Interface and Union)", () => {
     ).toBe(true);
 
     // Verify via helper
-    expect(checkInterface(filteredSchema, "Article", "Node")).toBe("implements");
+    expect(checkInterface(filteredSchema, "Article", "Node")).toBe(
+      "implements"
+    );
     expect(checkInterface(filteredSchema, "Article", "Content")).toBe(
       "implements"
     );
   });
 
   test("should have correct type counts for each target", async () => {
-    const publicSchema = await filterSchemaForTarget(schema, {
+    const publicSchema = await filterSchema(schema, {
       target: "public",
     });
-    const adminSchema = await filterSchemaForTarget(schema, {
+    const adminSchema = await filterSchema(schema, {
       target: "admin",
     });
 

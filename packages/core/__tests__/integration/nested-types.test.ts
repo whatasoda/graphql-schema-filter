@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { buildSchema } from "graphql";
-import { filterSchemaForTarget } from "../../src";
+import { filterSchema } from "../../src";
 import {
   checkType,
   checkField,
@@ -53,7 +53,7 @@ describe("nested types and relations", () => {
   `);
 
   test("should filter schema for member target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "member",
     });
 
@@ -84,12 +84,14 @@ describe("nested types and relations", () => {
   });
 
   test("should filter schema for admin target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "admin",
     });
 
     // Organization: billing should be included for admin
-    expect(checkField(filteredSchema, "Organization", "billing")).toBe("exists");
+    expect(checkField(filteredSchema, "Organization", "billing")).toBe(
+      "exists"
+    );
 
     // Team: privateNotes should be included for admin
     expect(checkField(filteredSchema, "Team", "privateNotes")).toBe("exists");
@@ -107,7 +109,7 @@ describe("nested types and relations", () => {
   });
 
   test("should filter schema for team-lead target", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "team-lead",
     });
 
@@ -124,10 +126,10 @@ describe("nested types and relations", () => {
   });
 
   test("should have correct reachable types for each target", async () => {
-    const memberSchema = await filterSchemaForTarget(schema, {
+    const memberSchema = await filterSchema(schema, {
       target: "member",
     });
-    const adminSchema = await filterSchemaForTarget(schema, {
+    const adminSchema = await filterSchema(schema, {
       target: "admin",
     });
 
@@ -151,7 +153,7 @@ describe("nested types and relations", () => {
   });
 
   test("should handle self-referencing types correctly", async () => {
-    const filteredSchema = await filterSchemaForTarget(schema, {
+    const filteredSchema = await filterSchema(schema, {
       target: "member",
     });
 

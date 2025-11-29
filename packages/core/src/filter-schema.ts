@@ -11,15 +11,15 @@ import {
   buildASTSchema,
   Kind,
 } from "graphql";
-import type { FilterSchemaOptions } from "../types";
-import { FilterSchemaOptionsSchema } from "../types";
+import type { FilterSchemaOptions } from "./types";
+import { FilterSchemaOptionsSchema } from "./types";
 import {
   createSchemaAnalysis,
   debugSchemaAnalysis,
-} from "../analysis/schema-analysis";
-import { computeReachability } from "../reachability/reachability";
-import { filterDefinitionsAST } from "./ast-filter";
-import { logger } from "../utils/logger";
+} from "./analysis/schema-analysis";
+import { computeReachability } from "./reachability/reachability";
+import { filterDefinitionsAST } from "./filter/ast-filter";
+import { logger } from "./utils/logger";
 
 /**
  * スキーマをフィルタリングして、指定ターゲット用のスキーマを生成

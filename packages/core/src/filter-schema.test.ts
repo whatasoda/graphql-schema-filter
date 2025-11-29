@@ -6,7 +6,7 @@ import {
   checkField,
   checkInterface,
   schemaContains,
-} from "../../__tests__/helpers";
+} from "../__tests__/helpers";
 
 describe("filterSchemaForTarget (integration)", () => {
   test("should filter complete schema for user target", async () => {
@@ -50,7 +50,9 @@ describe("filterSchemaForTarget (integration)", () => {
 
     // User should not have salary field
     expect(checkType(filteredSchema, "User")).toBe("exists");
-    expect(checkField(filteredSchema, "User", "salary")).toBe("field-not-found");
+    expect(checkField(filteredSchema, "User", "salary")).toBe(
+      "field-not-found"
+    );
 
     // Should not include CreateUserInput (not reachable)
     expect(checkType(filteredSchema, "CreateUserInput")).toBe("not-found");
@@ -89,7 +91,10 @@ describe("filterSchemaForTarget (integration)", () => {
     expect(schemaContains(filteredSchema, "users: [User!]!")).toBe(true);
     expect(schemaContains(filteredSchema, "adminUsers: [User!]!")).toBe(true);
     expect(
-      schemaContains(filteredSchema, "createUser(input: CreateUserInput!): User!")
+      schemaContains(
+        filteredSchema,
+        "createUser(input: CreateUserInput!): User!"
+      )
     ).toBe(true);
 
     // User should include salary field
@@ -162,7 +167,9 @@ describe("filterSchemaForTarget (integration)", () => {
     expect(checkType(filteredSchema, "User")).toBe("exists");
 
     // Should not include admin query and Admin type
-    expect(checkField(filteredSchema, "Query", "admin")).toBe("field-not-found");
+    expect(checkField(filteredSchema, "Query", "admin")).toBe(
+      "field-not-found"
+    );
     expect(checkType(filteredSchema, "Admin")).toBe("not-found");
   });
 
@@ -202,9 +209,9 @@ describe("filterSchemaForTarget (integration)", () => {
     });
 
     // Admin should see createUser but no exposed query fields
-    expect(
-      schemaContains(adminSchema, "createUser(name: String!): User")
-    ).toBe(true);
+    expect(schemaContains(adminSchema, "createUser(name: String!): User")).toBe(
+      true
+    );
   });
 
   test("should handle circular type references", async () => {
@@ -449,7 +456,10 @@ describe("filterSchemaForTarget (integration)", () => {
 
     // Should preserve field arguments
     expect(
-      schemaContains(filteredSchema, "user(id: ID!, includeEmail: Boolean): User")
+      schemaContains(
+        filteredSchema,
+        "user(id: ID!, includeEmail: Boolean): User"
+      )
     ).toBe(true);
   });
 });

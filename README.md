@@ -21,7 +21,9 @@ npm install @graphql-schema-filter/core graphql
 ### 1. Define directives in your schema
 
 ```graphql
-directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+directive @expose(
+  tags: [String!]!
+) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 directive @disableAutoExpose on OBJECT | INTERFACE
 
 type Query {
@@ -96,6 +98,7 @@ type User {
 ```
 
 **Default behavior:** Fields without `@expose` are **included** (auto-exposed). Use `@expose` to:
+
 - **Restrict** fields to specific targets: `@expose(tags: ["admin"])`
 - **Exclude** fields from all targets: `@expose(tags: [])`
 
@@ -131,6 +134,7 @@ type AdminQueries @disableAutoExpose {
 ```
 
 **Use cases:**
+
 - Nested query structures (delegated resolvers)
 - Types that should require explicit field marking
 - Security-sensitive types
@@ -174,18 +178,14 @@ const filteredSchema = filterSchema(schema, {
 - `schema`: `GraphQLSchema` - The schema to filter
 - `options`: `FilterSchemaOptions`
   - `target`: `string` - Target identifier (e.g., "readonly", "admin")
+  - `logLevel`: `LogLevel` - Log level (e.g., "debug", "info", "warn", "none") (default: "none")
 
 **Returns:** `GraphQLSchema`
 
 ### Exported Types
 
 ```typescript
-import type {
-  FilterSchemaOptions,
-  SchemaAnalysis,
-  TypeLevelExposureInfo,
-  FieldLevelExposureInfo,
-} from "@graphql-schema-filter/core";
+import type { FilterSchemaOptions } from "@graphql-schema-filter/core";
 ```
 
 ### Directive Definitions

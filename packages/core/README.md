@@ -60,18 +60,14 @@ Main entry point for filtering GraphQL schemas.
 - `schema: GraphQLSchema` - The GraphQL schema to filter
 - `options: FilterSchemaOptions`
   - `target: string` - The target tag for filtering (e.g., "admin", "readonly")
+  - `logLevel: LogLevel` - Log level (e.g., "debug", "info", "warn", "none") (default: "none")
 
 **Returns:** `GraphQLSchema` - Filtered schema
 
 ### Exported Types
 
 ```typescript
-import type {
-  FilterSchemaOptions,
-  SchemaAnalysis,
-  TypeLevelExposureInfo,
-  FieldLevelExposureInfo,
-} from "@graphql-schema-filter/core";
+import type { FilterSchemaOptions } from "@graphql-schema-filter/core";
 ```
 
 ### Directive Definitions
@@ -89,7 +85,9 @@ ln -s node_modules/@graphql-schema-filter/core/dist/directives.graphql src/graph
 Mark fields as exposed to specific targets.
 
 ```graphql
-directive @expose(tags: [String!]!) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+directive @expose(
+  tags: [String!]!
+) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 ```
 
 ### `@disableAutoExpose`

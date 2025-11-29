@@ -1,6 +1,12 @@
 import { describe, test, expect } from "bun:test";
-import { buildSchema, printSchema } from "graphql";
+import { buildSchema } from "graphql";
 import { filterSchema } from "./filter-schema";
+import {
+  checkType,
+  checkField,
+  checkInterface,
+  schemaContains,
+} from "../../__tests__/helpers";
 
 describe("filterSchemaForTarget (integration)", () => {
   test("should filter complete schema for user target", async () => {
@@ -33,19 +39,21 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "user",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should only include users query
-    expect(filteredSchemaStr).toContain("users: [User!]!");
-    expect(filteredSchemaStr).not.toContain("adminUsers:");
-    expect(filteredSchemaStr).not.toContain("createUser:");
+    expect(schemaContains(filteredSchema, "users: [User!]!")).toBe(true);
+    expect(checkField(filteredSchema, "Query", "adminUsers")).toBe(
+      "field-not-found"
+    );
+    expect(checkField(filteredSchema, "Query", "createUser")).toBe(
+      "field-not-found"
+    );
 
     // User should not have salary field
-    expect(filteredSchemaStr).toContain("type User");
-    expect(filteredSchemaStr).not.toContain("salary:");
+    expect(checkType(filteredSchema, "User")).toBe("exists");
+    expect(checkField(filteredSchema, "User", "salary")).toBe("field-not-found");
 
     // Should not include CreateUserInput (not reachable)
-    expect(filteredSchemaStr).not.toContain("CreateUserInput");
+    expect(checkType(filteredSchema, "CreateUserInput")).toBe("not-found");
   });
 
   test("should filter complete schema for admin target", async () => {
@@ -77,20 +85,18 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "admin",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should include all queries
-    expect(filteredSchemaStr).toContain("users: [User!]!");
-    expect(filteredSchemaStr).toContain("adminUsers: [User!]!");
-    expect(filteredSchemaStr).toContain(
-      "createUser(input: CreateUserInput!): User!"
-    );
+    expect(schemaContains(filteredSchema, "users: [User!]!")).toBe(true);
+    expect(schemaContains(filteredSchema, "adminUsers: [User!]!")).toBe(true);
+    expect(
+      schemaContains(filteredSchema, "createUser(input: CreateUserInput!): User!")
+    ).toBe(true);
 
     // User should include salary field
-    expect(filteredSchemaStr).toContain("salary: Float");
+    expect(checkField(filteredSchema, "User", "salary")).toBe("exists");
 
     // Should include CreateUserInput
-    expect(filteredSchemaStr).toContain("input CreateUserInput");
+    expect(checkType(filteredSchema, "CreateUserInput")).toBe("exists");
   });
 
   test("should respect @disableAutoExpose directive", async () => {
@@ -113,14 +119,18 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "admin",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // BillingInfo should only include fields with @expose
-    expect(filteredSchemaStr).toContain("accountNumber: String");
+    expect(checkField(filteredSchema, "BillingInfo", "accountNumber")).toBe(
+      "exists"
+    );
 
     // Should not include id or balance (no @expose on type with @disableAutoExpose)
-    expect(filteredSchemaStr).not.toContain("id: ID!");
-    expect(filteredSchemaStr).not.toContain("balance:");
+    expect(checkField(filteredSchema, "BillingInfo", "id")).toBe(
+      "field-not-found"
+    );
+    expect(checkField(filteredSchema, "BillingInfo", "balance")).toBe(
+      "field-not-found"
+    );
   });
 
   test("should handle explicit entry points", async () => {
@@ -147,15 +157,13 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "user",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should include user query and User type
-    expect(filteredSchemaStr).toContain("user: User");
-    expect(filteredSchemaStr).toContain("type User");
+    expect(checkField(filteredSchema, "Query", "user")).toBe("exists");
+    expect(checkType(filteredSchema, "User")).toBe("exists");
 
     // Should not include admin query and Admin type
-    expect(filteredSchemaStr).not.toContain("admin:");
-    expect(filteredSchemaStr).not.toContain("type Admin");
+    expect(checkField(filteredSchema, "Query", "admin")).toBe("field-not-found");
+    expect(checkType(filteredSchema, "Admin")).toBe("not-found");
   });
 
   test("should handle Mutation fields", async () => {
@@ -181,20 +189,22 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "user",
     });
 
-    const userSchemaStr = printSchema(userSchema);
-
     // User should see updateUser but not createUser
-    expect(userSchemaStr).toContain("updateUser(id: ID!, name: String!): User");
-    expect(userSchemaStr).not.toContain("createUser:");
+    expect(
+      schemaContains(userSchema, "updateUser(id: ID!, name: String!): User")
+    ).toBe(true);
+    expect(checkField(userSchema, "Mutation", "createUser")).toBe(
+      "field-not-found"
+    );
 
     const adminSchema = await filterSchema(schema, {
       target: "admin",
     });
 
-    const adminSchemaStr = printSchema(adminSchema);
-
     // Admin should see createUser but no exposed query fields
-    expect(adminSchemaStr).toContain("createUser(name: String!): User");
+    expect(
+      schemaContains(adminSchema, "createUser(name: String!): User")
+    ).toBe(true);
   });
 
   test("should handle circular type references", async () => {
@@ -223,13 +233,11 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "user",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should handle circular User -> friends: [User!]!
-    expect(filteredSchemaStr).toMatch(/friends.*User/);
+    expect(checkField(filteredSchema, "User", "friends")).toBe("exists");
 
     // Should include Post (reachable from User.posts)
-    expect(filteredSchemaStr).toContain("type Post");
+    expect(checkType(filteredSchema, "Post")).toBe("exists");
   });
 
   // SKIPPED: 理想的にはこのテストが通るべきだが、実装の複雑化に対して実用上のメリットが少ないためスキップ
@@ -263,16 +271,14 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "user",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should include User (directly reachable from Query.user)
-    expect(filteredSchemaStr).toContain("type User implements Node");
+    expect(checkInterface(filteredSchema, "User", "Node")).toBe("implements");
 
     // Should include Node interface (automatically added because User implements it)
-    expect(filteredSchemaStr).toContain("interface Node");
+    expect(checkType(filteredSchema, "Node")).toBe("exists");
 
     // Should NOT include Post (not exposed to "user" target)
-    expect(filteredSchemaStr).not.toContain("type Post");
+    expect(checkType(filteredSchema, "Post")).toBe("not-found");
   });
 
   test("should include all interface implementations when interface is reachable", async () => {
@@ -304,16 +310,14 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "user",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should include User (directly reachable from Query.user)
-    expect(filteredSchemaStr).toContain("type User implements Node");
+    expect(checkInterface(filteredSchema, "User", "Node")).toBe("implements");
 
     // Should include Node interface (automatically added because User implements it)
-    expect(filteredSchemaStr).toContain("interface Node");
+    expect(checkType(filteredSchema, "Node")).toBe("exists");
 
     // Post is also included because it implements Node (current behavior)
-    expect(filteredSchemaStr).toContain("type Post implements Node");
+    expect(checkInterface(filteredSchema, "Post", "Node")).toBe("implements");
   });
 
   test("should include interface implementations when interface is used in internal fields", async () => {
@@ -344,16 +348,14 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "user",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should include User (directly reachable from Query.user)
-    expect(filteredSchemaStr).toContain("type User implements Node");
+    expect(checkInterface(filteredSchema, "User", "Node")).toBe("implements");
 
     // Should include Node interface (User implements it, and User.friend returns Node)
-    expect(filteredSchemaStr).toContain("interface Node");
+    expect(checkType(filteredSchema, "Node")).toBe("exists");
 
     // Should include Post (Node's implementation, because User.friend: Node)
-    expect(filteredSchemaStr).toContain("type Post implements Node");
+    expect(checkInterface(filteredSchema, "Post", "Node")).toBe("implements");
   });
 
   test("should handle Union types", async () => {
@@ -381,14 +383,14 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "user",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should include SearchResult union
-    expect(filteredSchemaStr).toContain("union SearchResult = User | Post");
+    expect(
+      schemaContains(filteredSchema, "union SearchResult = User | Post")
+    ).toBe(true);
 
     // Should include both union members
-    expect(filteredSchemaStr).toContain("type User");
-    expect(filteredSchemaStr).toContain("type Post");
+    expect(checkType(filteredSchema, "User")).toBe("exists");
+    expect(checkType(filteredSchema, "Post")).toBe("exists");
   });
 
   test("should handle nested InputObject types", async () => {
@@ -421,12 +423,10 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "admin",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should include all nested InputObject types
-    expect(filteredSchemaStr).toContain("input CreateUserInput");
-    expect(filteredSchemaStr).toContain("input ProfileInput");
-    expect(filteredSchemaStr).toContain("input SettingsInput");
+    expect(checkType(filteredSchema, "CreateUserInput")).toBe("exists");
+    expect(checkType(filteredSchema, "ProfileInput")).toBe("exists");
+    expect(checkType(filteredSchema, "SettingsInput")).toBe("exists");
   });
 
   test("should preserve field arguments", async () => {
@@ -447,11 +447,9 @@ describe("filterSchemaForTarget (integration)", () => {
       target: "user",
     });
 
-    const filteredSchemaStr = printSchema(filteredSchema);
-
     // Should preserve field arguments
-    expect(filteredSchemaStr).toContain(
-      "user(id: ID!, includeEmail: Boolean): User"
-    );
+    expect(
+      schemaContains(filteredSchema, "user(id: ID!, includeEmail: Boolean): User")
+    ).toBe(true);
   });
 });

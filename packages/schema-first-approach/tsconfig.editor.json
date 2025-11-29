@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "customConditions": ["development"],
+    "outDir": "../../node_modules/.cache/@graphql-schema-filter/.typecheck/schema-first-approach",
+    "tsBuildInfoFile": "../../node_modules/.cache/@graphql-schema-filter/.typecheck/schema-first-approach/tsconfig.tsbuildinfo",
+    "rootDir": "."
+  },
+  "include": ["**/*", "**/*.json"],
+  "exclude": ["node_modules", "dist"],
+  "references": [{ "path": "../core/tsconfig.editor.json" }]
+}

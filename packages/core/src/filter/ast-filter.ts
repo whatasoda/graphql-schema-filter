@@ -1,18 +1,31 @@
 /**
- * AST-based schema filtering
+ * AST-based schema filtering using GraphQL's visit() function
  */
 
-import type {
-  DocumentNode,
-  DefinitionNode,
-  ObjectTypeDefinitionNode,
-  InterfaceTypeDefinitionNode,
-  InputObjectTypeDefinitionNode,
-  UnionTypeDefinitionNode,
-  FieldDefinitionNode,
-  InputValueDefinitionNode,
+import {
+  visit,
+  type DocumentNode,
+  type DefinitionNode,
+  type ObjectTypeDefinitionNode,
+  type InterfaceTypeDefinitionNode,
+  type InputObjectTypeDefinitionNode,
+  type UnionTypeDefinitionNode,
+  type EnumTypeDefinitionNode,
+  type ScalarTypeDefinitionNode,
+  type FieldDefinitionNode,
+  type InputValueDefinitionNode,
+  type ASTVisitor,
 } from "graphql";
 import type { SchemaAnalysis } from "../types";
+
+/**
+ * Context for the AST filter visitor
+ */
+interface FilterVisitorContext {
+  target: string;
+  reachableTypes: Set<string>;
+  analysis: SchemaAnalysis;
+}
 
 /**
  * Determines whether the specified target can access a field from AST FieldDefinitionNode
@@ -64,206 +77,153 @@ export function isFieldExposedFromAST({
 }
 
 /**
- * Filters fields of ObjectTypeDefinition
- *
- * @param typeDef - Object type definition AST node
- * @param analysis - Parsed @expose directive information
- * @param target - Target identifier
- * @returns Filtered field array
+ * Checks if the given type name is a root type (Query/Mutation/Subscription)
  */
-function filterObjectFields(
-  typeDef: ObjectTypeDefinitionNode,
-  analysis: SchemaAnalysis,
-  target: string
-): readonly FieldDefinitionNode[] | undefined {
-  if (!typeDef.fields) {
+function isRootTypeName(typeName: string, analysis: SchemaAnalysis): boolean {
+  const { query, mutation, subscription } = analysis.rootTypeNames;
+  return (
+    typeName === query || typeName === mutation || typeName === subscription
+  );
+}
+
+/**
+ * Filters fields based on exposure rules
+ */
+function filterFields<T extends FieldDefinitionNode | InputValueDefinitionNode>(
+  typeName: string,
+  fields: readonly T[] | undefined,
+  context: FilterVisitorContext
+): readonly T[] | undefined {
+  if (!fields) {
     return undefined;
   }
 
-  // exposed-only: Filter based on @expose rules
-  return typeDef.fields.filter((field) =>
+  return fields.filter((field) =>
     isFieldExposedFromAST({
-      typeName: typeDef.name.value,
+      typeName,
       field,
-      analysis,
-      target,
+      analysis: context.analysis,
+      target: context.target,
     })
   );
 }
 
 /**
- * Filters fields of InterfaceTypeDefinition
- *
- * @param typeDef - Interface type definition AST node
- * @param analysis - Parsed @expose directive information
- * @param target - Target identifier
- * @returns Filtered field array
+ * Filters reachable interface implementations
  */
-function filterInterfaceFields(
-  typeDef: InterfaceTypeDefinitionNode,
-  analysis: SchemaAnalysis,
-  target: string
-): readonly FieldDefinitionNode[] | undefined {
-  if (!typeDef.fields) {
-    return undefined;
-  }
-
-  // exposed-only: Filter based on @expose rules
-  return typeDef.fields.filter((field) =>
-    isFieldExposedFromAST({
-      typeName: typeDef.name.value,
-      field,
-      analysis,
-      target,
-    })
-  );
-}
-
-/**
- * Filters fields of InputObjectTypeDefinition
- *
- * @param typeDef - InputObject type definition AST node
- * @param analysis - Parsed @expose directive information
- * @param target - Target identifier
- * @returns Filtered field array
- *
- * @remarks
- * InputObject uses permissive mode: included by default when no @expose is present
- */
-function filterInputObjectFields(
-  typeDef: InputObjectTypeDefinitionNode,
-  analysis: SchemaAnalysis,
-  target: string
-): readonly InputValueDefinitionNode[] | undefined {
-  if (!typeDef.fields) {
-    return undefined;
-  }
-
-  return typeDef.fields.filter((field) =>
-    isFieldExposedFromAST({
-      typeName: typeDef.name.value,
-      field,
-      analysis,
-      target,
-    })
-  );
-}
-
-/**
- * Filters ObjectTypeDefinition
- *
- * @param typeDef - Object type definition AST node
- * @param analysis - Parsed @expose directive information
- * @param target - Target identifier
- * @param reachableTypes - Set of reachable type names
- * @returns Filtered Object type definition, or null if fields are empty
- */
-function filterObjectTypeDefinition(
-  typeDef: ObjectTypeDefinitionNode,
-  analysis: SchemaAnalysis,
-  target: string,
+function filterInterfaces(
+  interfaces: ObjectTypeDefinitionNode["interfaces"],
   reachableTypes: Set<string>
+): ObjectTypeDefinitionNode["interfaces"] {
+  return interfaces?.filter((iface) => reachableTypes.has(iface.name.value));
+}
+
+/**
+ * Visitor for ObjectTypeDefinition nodes
+ */
+function visitObjectType(
+  node: ObjectTypeDefinitionNode,
+  context: FilterVisitorContext
 ): ObjectTypeDefinitionNode | null {
-  const filteredFields = filterObjectFields(typeDef, analysis, target);
+  const typeName = node.name.value;
+  const isRootType = isRootTypeName(typeName, context.analysis);
 
-  // Remove type if fields are empty
-  if (!filteredFields || filteredFields.length === 0) {
+  // Exclude unreachable non-root types
+  if (!isRootType && !context.reachableTypes.has(typeName)) {
     return null;
   }
 
-  // Keep only reachable implemented interfaces
-  const filteredInterfaces = typeDef.interfaces?.filter((iface) =>
-    reachableTypes.has(iface.name.value)
+  const filteredFields = filterFields(typeName, node.fields, context);
+  const filteredInterfaces = filterInterfaces(
+    node.interfaces,
+    context.reachableTypes
   );
 
-  return {
-    ...typeDef,
-    fields: filteredFields,
-    interfaces: filteredInterfaces,
-  };
+  // Handle empty fields case
+  if (!filteredFields || filteredFields.length === 0) {
+    // Root types keep empty definition
+    if (isRootType) {
+      return { ...node, fields: [], interfaces: filteredInterfaces };
+    }
+    return null;
+  }
+
+  return { ...node, fields: filteredFields, interfaces: filteredInterfaces };
 }
 
 /**
- * Filters InterfaceTypeDefinition
- *
- * @param typeDef - Interface type definition AST node
- * @param analysis - Parsed @expose directive information
- * @param target - Target identifier
- * @param reachableTypes - Set of reachable type names
- * @returns Filtered Interface type definition, or null if fields are empty
+ * Visitor for InterfaceTypeDefinition nodes
  */
-function filterInterfaceTypeDefinition(
-  typeDef: InterfaceTypeDefinitionNode,
-  analysis: SchemaAnalysis,
-  target: string,
-  reachableTypes: Set<string>
+function visitInterfaceType(
+  node: InterfaceTypeDefinitionNode,
+  context: FilterVisitorContext
 ): InterfaceTypeDefinitionNode | null {
-  const filteredFields = filterInterfaceFields(typeDef, analysis, target);
+  const typeName = node.name.value;
 
-  // Remove type if fields are empty
-  if (!filteredFields || filteredFields.length === 0) {
+  // Exclude unreachable types
+  if (!context.reachableTypes.has(typeName)) {
     return null;
   }
 
-  // Keep only reachable implemented interfaces
-  const filteredInterfaces = typeDef.interfaces?.filter((iface) =>
-    reachableTypes.has(iface.name.value)
+  const filteredFields = filterFields(typeName, node.fields, context);
+  const filteredInterfaces = filterInterfaces(
+    node.interfaces,
+    context.reachableTypes
   );
 
-  return {
-    ...typeDef,
-    fields: filteredFields,
-    interfaces: filteredInterfaces,
-  };
+  // Remove type if fields are empty
+  if (!filteredFields || filteredFields.length === 0) {
+    return null;
+  }
+
+  return { ...node, fields: filteredFields, interfaces: filteredInterfaces };
 }
 
 /**
- * Filters InputObjectTypeDefinition
- *
- * @param typeDef - InputObject type definition AST node
- * @param analysis - Parsed @expose directive information
- * @param target - Target identifier
- * @returns Filtered InputObject type definition, or null if fields are empty
+ * Visitor for InputObjectTypeDefinition nodes
  */
-function filterInputObjectTypeDefinition(
-  typeDef: InputObjectTypeDefinitionNode,
-  analysis: SchemaAnalysis,
-  target: string
+function visitInputObjectType(
+  node: InputObjectTypeDefinitionNode,
+  context: FilterVisitorContext
 ): InputObjectTypeDefinitionNode | null {
-  const filteredFields = filterInputObjectFields(typeDef, analysis, target);
+  const typeName = node.name.value;
+
+  // Exclude unreachable types
+  if (!context.reachableTypes.has(typeName)) {
+    return null;
+  }
+
+  const filteredFields = filterFields(typeName, node.fields, context);
 
   // Remove type if fields are empty
   if (!filteredFields || filteredFields.length === 0) {
     return null;
   }
 
-  return {
-    ...typeDef,
-    fields: filteredFields,
-  };
+  return { ...node, fields: filteredFields };
 }
 
 /**
- * Filters UnionTypeDefinition
- *
- * @param typeDef - Union type definition AST node
- * @param reachableTypes - Set of reachable type names
- * @returns Filtered Union type definition, or null if members are empty
- *
- * @remarks
- * Excludes union member types that are unreachable
+ * Visitor for UnionTypeDefinition nodes
  */
-function filterUnionTypeDefinition(
-  typeDef: UnionTypeDefinitionNode,
-  reachableTypes: Set<string>
+function visitUnionType(
+  node: UnionTypeDefinitionNode,
+  context: FilterVisitorContext
 ): UnionTypeDefinitionNode | null {
-  if (!typeDef.types) {
+  const typeName = node.name.value;
+
+  // Exclude unreachable types
+  if (!context.reachableTypes.has(typeName)) {
+    return null;
+  }
+
+  if (!node.types) {
     return null;
   }
 
   // Keep only reachable member types
-  const filteredTypes = typeDef.types.filter((memberType) =>
-    reachableTypes.has(memberType.name.value)
+  const filteredTypes = node.types.filter((memberType) =>
+    context.reachableTypes.has(memberType.name.value)
   );
 
   // Remove type if members are empty
@@ -271,9 +231,66 @@ function filterUnionTypeDefinition(
     return null;
   }
 
+  return { ...node, types: filteredTypes };
+}
+
+/**
+ * Visitor for simple type definitions (Enum/Scalar)
+ */
+function visitSimpleType(
+  node: EnumTypeDefinitionNode | ScalarTypeDefinitionNode,
+  context: FilterVisitorContext
+): EnumTypeDefinitionNode | ScalarTypeDefinitionNode | null {
+  // Exclude unreachable types
+  if (!context.reachableTypes.has(node.name.value)) {
+    return null;
+  }
+
+  return node;
+}
+
+/**
+ * Creates an AST visitor for filtering definitions
+ */
+function createFilterVisitor(context: FilterVisitorContext): ASTVisitor {
   return {
-    ...typeDef,
-    types: filteredTypes,
+    // Remove schema definition (buildASTSchema generates it automatically)
+    SchemaDefinition: () => null,
+
+    // Exclude internal directives (expose, disableAutoExpose), keep others
+    DirectiveDefinition: {
+      enter: (node) => {
+        const name = node.name.value;
+        if (name === "expose" || name === "disableAutoExpose") {
+          return null;
+        }
+        return undefined;
+      },
+    },
+
+    ObjectTypeDefinition: {
+      enter: (node) => visitObjectType(node, context),
+    },
+
+    InterfaceTypeDefinition: {
+      enter: (node) => visitInterfaceType(node, context),
+    },
+
+    InputObjectTypeDefinition: {
+      enter: (node) => visitInputObjectType(node, context),
+    },
+
+    UnionTypeDefinition: {
+      enter: (node) => visitUnionType(node, context),
+    },
+
+    EnumTypeDefinition: {
+      enter: (node) => visitSimpleType(node, context),
+    },
+
+    ScalarTypeDefinition: {
+      enter: (node) => visitSimpleType(node, context),
+    },
   };
 }
 
@@ -299,83 +316,13 @@ export function filterDefinitionsAST(
   reachableTypes: Set<string>,
   analysis: SchemaAnalysis
 ): DefinitionNode[] {
-  return documentNode.definitions
-    .map((def) => {
-      // Include directive definitions as-is
-      if (def.kind === "DirectiveDefinition") {
-        return def;
-      }
+  const context: FilterVisitorContext = {
+    target,
+    reachableTypes,
+    analysis,
+  };
 
-      // Exclude schema definition (buildASTSchema generates it automatically)
-      if (def.kind === "SchemaDefinition") {
-        return null;
-      }
+  const filteredDocument = visit(documentNode, createFilterVisitor(context));
 
-      // Include non-type definitions as-is
-      if (
-        def.kind !== "ObjectTypeDefinition" &&
-        def.kind !== "InterfaceTypeDefinition" &&
-        def.kind !== "InputObjectTypeDefinition" &&
-        def.kind !== "UnionTypeDefinition" &&
-        def.kind !== "EnumTypeDefinition" &&
-        def.kind !== "ScalarTypeDefinition"
-      ) {
-        return def;
-      }
-
-      // Root types (Query/Mutation/Subscription) are always included (even if fields are empty)
-      const isRootType =
-        def.name.value === analysis.rootTypeNames.query ||
-        def.name.value === analysis.rootTypeNames.mutation ||
-        def.name.value === analysis.rootTypeNames.subscription;
-
-      // Exclude unreachable types (except root types)
-      if (!isRootType && !reachableTypes.has(def.name.value)) {
-        return null;
-      }
-
-      // Field filtering for Object types
-      if (def.kind === "ObjectTypeDefinition") {
-        const filtered = filterObjectTypeDefinition(
-          def,
-          analysis,
-          target,
-          reachableTypes
-        );
-
-        // For root types, keep type definition even if fields are empty
-        if (isRootType && filtered === null) {
-          return {
-            ...def,
-            fields: [],
-          };
-        }
-
-        return filtered;
-      }
-
-      // Field filtering for Interface types
-      if (def.kind === "InterfaceTypeDefinition") {
-        return filterInterfaceTypeDefinition(
-          def,
-          analysis,
-          target,
-          reachableTypes
-        );
-      }
-
-      // Field filtering for InputObject types
-      if (def.kind === "InputObjectTypeDefinition") {
-        return filterInputObjectTypeDefinition(def, analysis, target);
-      }
-
-      // Member filtering for Union types
-      if (def.kind === "UnionTypeDefinition") {
-        return filterUnionTypeDefinition(def, reachableTypes);
-      }
-
-      // Include Scalar/Enum as-is
-      return def;
-    })
-    .filter((def) => def != null);
+  return [...filteredDocument.definitions];
 }
